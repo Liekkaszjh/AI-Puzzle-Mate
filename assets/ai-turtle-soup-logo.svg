@@ -1,0 +1,27 @@
+<svg width="920" height="280" viewBox="0 0 920 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>AI 海龟汤 Logo</title>
+  <desc>一个结合海龟、对话气泡和问号的 AI 海龟汤游戏 Logo</desc>
+  <rect width="920" height="280" rx="32" fill="#F7FBFA"/>
+
+  <g transform="translate(38 30)">
+    <path d="M118 29C70 29 31 66 31 112C31 143 48 169 73 184L66 216L98 193C105 195 111 196 118 196C166 196 205 159 205 112C205 66 166 29 118 29Z" fill="#DFF6F0"/>
+    <path d="M118 43C78 43 46 73 46 112C46 143 66 168 94 178C104 182 113 183 124 181C160 176 190 147 190 112C190 73 158 43 118 43Z" fill="#24A899"/>
+    <path d="M117 57C83 57 59 81 59 112C59 143 84 167 117 167C150 167 176 143 176 112C176 81 151 57 117 57Z" fill="#56C8B4"/>
+    <path d="M117 70L131 91L156 92L137 108L143 133L117 120L91 133L97 108L78 92L103 91L117 70Z" fill="#F6C85F"/>
+    <path d="M77 155C66 166 51 170 39 166C28 162 24 153 31 146C38 139 51 139 64 146L77 155Z" fill="#24A899"/>
+    <path d="M157 155C168 166 183 170 195 166C206 162 210 153 203 146C196 139 183 139 170 146L157 155Z" fill="#24A899"/>
+    <path d="M66 91C57 82 48 76 38 78C29 80 25 89 32 96C39 104 52 105 65 101L66 91Z" fill="#24A899"/>
+    <path d="M168 91C177 82 186 76 196 78C205 80 209 89 202 96C195 104 182 105 169 101L168 91Z" fill="#24A899"/>
+    <circle cx="91" cy="111" r="5" fill="#123C43"/>
+    <circle cx="143" cy="111" r="5" fill="#123C43"/>
+    <path d="M99 133C110 141 124 141 135 133" stroke="#123C43" stroke-width="6" stroke-linecap="round"/>
+    <path d="M169 38C181 27 194 22 209 24C231 27 247 43 250 64C253 87 240 108 219 115L229 141L203 123C188 124 174 119 164 109" fill="#FFF3C7" stroke="#123C43" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M204 56C216 52 226 60 226 70C226 80 216 84 210 91C206 95 206 100 206 104" stroke="#E07A5F" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="206" cy="116" r="4.5" fill="#E07A5F"/>
+  </g>
+
+  <g transform="translate(310 0)">
+    <text x="0" y="135" fill="#123C43" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="72" font-weight="700" letter-spacing="0">AI 海龟汤</text>
+    <text x="4" y="185" fill="#4D777A" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="24" font-weight="500" letter-spacing="1">和 AI 队友一起，把故事推理出来</text>
+  </g>
+</svg>
