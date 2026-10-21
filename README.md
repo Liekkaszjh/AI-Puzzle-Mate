@@ -13,6 +13,19 @@
 
 **问渊** 是一款由大语言模型（LLM）驱动的侧向思维（Lateral Thinking）解谜游戏（海龟汤）。玩家需要通过不断的提问和推理，揭开一个个神秘故事背后的真相。支持多人联机。
 
+## 🎬 产品介绍视频
+
+<p align="center">
+  <a href="promo-video/out/wenyuan-promo-final.mp4">
+    <img src="docs/assets/product-cover.png" alt="观看问渊产品介绍视频" width="720">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="promo-video/out/wenyuan-promo-final.mp4">▶ 点击观看《问渊》产品介绍视频</a></strong><br>
+  2 分 15 秒 · 1080p · 含配乐与中文旁白
+</p>
+
 ## 🎮 在线演示
 
 **Demo 地址**: 待定
