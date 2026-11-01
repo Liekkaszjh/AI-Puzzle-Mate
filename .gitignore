@@ -1,0 +1,15 @@
+# 本地环境配置与密钥
+.env
+.env.*
+!.env.example
+
+# 真实API测试结果包含汤底和未解锁提示
+tests/integration/output/
+
+# Python环境与构建产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
