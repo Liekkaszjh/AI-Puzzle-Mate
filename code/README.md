@@ -42,7 +42,7 @@ PORT=8000
 - 新生成题目包含汤面、汤底和若干条 `key_points` 关键事实，保存到 `module1_puzzles/generated_puzzles.json`。以后随机已有题目也可以抽到。离线演示只抽取支持本地判题的内置题。返回选题不会删除当前局，可点击“回到当前推理桌”恢复。
 - **合作模式**：你提问 → 汤主判断 → 小夏自动提问 → 汤主判断 → 再轮到你。不能在队友回合连续提问或提交还原。失败可点击“重试队友回合”，刷新也能恢复尚未完成的队友回合。
 - **单人模式**：只有你与汤主，提问后可以继续提问，不调用队友模块。
-- 桌面纸张显示汤面，较长内容可在纸张内滚动阅读。右侧“桌边的对话”按顺序保留问题、发言者及汤主的正确／错误／无关判定，可独立滚动。
+- 桌面纸张显示汤面，较长内容可在纸张内滚动阅读。右侧“桌边的对话”按顺序保留问题、发言者及汤主的“是／不是／无关”判定，可独立滚动。
 - 想通后点击 **我要交答案**，打开独立的故事还原输入框，填写完整解释，再点击 **提交答案并评分**。与平时的问题输入框分开，避免误提交。
 - 交卷后结束本局并展示总分、逐条事实评估、自己的答案与完整汤底。满分状态为 `won`，非满分为 `scored`，都可以重新选题。得分可通过“查看本局得分”再次打开，刷新后保留。
 - 输入框按 Enter 提问，Shift + Enter 换行。桌面端对话记录在右侧，小屏幕位于场景下方。
@@ -54,10 +54,17 @@ PORT=8000
 ├── module1_puzzles/        模块1：出题提示词、汤面与汤底、内置演示题
 ├── module2_teammate/       模块2：根据汤面和公开对话提问
 ├── module3_host/           模块3：根据汤底判定提问或最终还原
+│   ├── service.py          问句/交卷服务、judge 入口与耗时统计
+│   ├── question_guards.py  开放式、多判断、索要答案、注入等前置检查
+│   ├── history.py          公开历史过滤与重复问题归一
+│   ├── leak_guard.py       汤底片段检测与反馈兜底
+│   ├── scoring.py          逐事实评分与严格协议校验
+│   └── README.md           模块接口、判定策略与需求映射
 ├── module4_frontend/       模块4：Python HTTP 服务、网页、人物 SVG
 ├── run.py                  启动入口
 ├── llm.py                  DeepSeek 单次请求、配置读取
 ├── test_game.py            端到端与模型协议测试
+├── test_module3_host.py    汤主模块离线测试
 ├── .env                    填写你的 DeepSeek 密钥
 ├── .env.example            配置模板
 └── .gitignore
@@ -67,8 +74,9 @@ PORT=8000
 | --- | --- | --- | --- |
 | 出题 | `generate_puzzle(client, theme="")` | 题材 | `title`、`surface`、`bottom`、`key_points` |
 | 队友 | `propose_question(client, surface, history)` | 汤面、公开历史，无法读取汤底 | 问题字符串 |
-| 汤主 | `judge(client, puzzle, text, kind="question")` | 含汤底的题目、提问或还原 | `verdict`、`feedback` |
-| 汤主评分 | `score_reconstruction(client, puzzle, text)` | 汤底、关键事实、玩家答案 | 百分制总分、逐条状态与说明、命中条数 |
+| 汤主 | `judge(client, puzzle, text, kind="question", history=None)` | 含汤底的题目、提问或还原、公开历史 | `verdict`（问句：是/不是/无关；还原：正确/部分正确/错误）、`feedback` |
+| 汤主详细 | `judge_detailed(...)` / `HostService.ask/submit` | 同上 | 判定、来源、耗时、交卷报告 |
+| 汤主评分 | `score_reconstruction(client, puzzle, text)` | 汤底、关键事实、玩家答案 | 百分制总分、三级结论、逐条状态与说明、命中条数 |
 | 前端 | `create_server(client, host, port)` | 模块输出、玩家操作 | 围桌交互与右侧记录 |
 
 每个 AI 模块每次执行只有一次 DeepSeek 请求，无 Agent 循环、无自动网络重试。出题一次请求；单人提问一次请求；合作模式一轮为玩家判定一次、队友提问一次、队友判定一次，共三次请求。最终交卷评分一次请求。队友判题失败时保留已经生成的问题，手动重试只继续判题。
@@ -88,7 +96,27 @@ PORT=8000
 | 未提及 `missing` | 0 |
 | 存在矛盾 `contradicted` | 0 |
 
-总分由 Python 计算：`round(各事实计分之和 / 事实条数 × 100, 1)`，所有事实等权。例如4条事实，2条完整、1条部分、1条遗漏，得到62.5分。模型不能直接指定总分。服务端会验证事实数量、顺序和状态，结果无效时保留当前局，允许重新提交。
+总分由 Python 计算：`round(各事实计分之和 / 事实条数 × 100, 1)`，所有事实等权。例如4条事实，2条完整、1条部分、1条遗漏，得到62.5分。模型不能直接指定总分。服务端会验证事实数量、顺序和状态，结果无效时保留当前局，允许重新提交。百分制再映射为三级结论：`100` 为 `正确`，`0` 为 `错误`，其余为 `部分正确`；只有 `正确` 会把本局状态设为 `won`。
+
+## 汤主模块（模块3）
+
+汤主对玩家问句只回答三种结果：
+
+| 判定 | 含义 | 典型情况 |
+| --- | --- | --- |
+| `是` | 玩家断言的命题与汤底一致 | “他是邮差吗？” |
+| `不是` | 玩家断言的命题与汤底明确冲突 | “他是学生吗？” |
+| `无关` | 汤底无法确定、与核心因果无关，或不是单一是非命题 | “他喜欢什么颜色？” |
+
+`judge(client, puzzle, text, kind="question", history=None)` 是模块4使用的入口；`judge_detailed` 和 `HostService.ask/submit` 额外返回 `source`、`timings_ms` 与交卷报告。
+
+- **前置检查**：开放式、包含多个独立判断、索要汤底/答案/提示词、提示词注入等问题不调用模型，直接返回“无关”和拆分/改写提示（FR-3.2）。
+- **历史一致性**：模块4把已公开问句传给汤主；`是否/是不是/有没有` 等形式会归一，签名相同的重复问题直接复用最近判定、零模型调用（FR-3.3）。
+- **防泄底**：模型返回的 `feedback` 一律丢弃，公开反馈只由本地规则生成；`leak_guard` 再检测汤底/关键事实片段（FR-3.4）。
+- **单次调用**：每次问句最多一次模型请求；重复问题 0 次；交卷评分 1 次；协议错误抛 `ModelError`，不把失败结果写入历史。
+- **演示模式**：按内置题 `rules` 关键词判定，否定词会翻转答案；复杂句提示接入模型。
+
+详细契约、算法和需求映射见 [module3_host/README.md](module3_host/README.md) 与 [docs/software/module3_host.md](../docs/software/module3_host.md)。
 
 ## HTTP 协议
 
@@ -103,18 +131,19 @@ PORT=8000
 | POST | `/api/final` | `{"text":"完整还原……"}` | 玩家回合交卷，最多1500字，评分后结束 |
 | POST | `/api/reveal` | `{}` | 揭晓并结束 |
 
-状态含 `mode`（`demo/llm`）、`status`（`idle/playing/won/scored/revealed`）、`source`、`play_mode`、`next_actor`（`player/teammate`）、`pending_question`、`notice`、`history`、`report`。进行中 `puzzle` 仅含标题、汤面和 `fact_count`；结束后才返回含汤底的 `solution`。交卷后的 `report` 包含 `score`、`matched_count`、`total_facts`、`answer` 和逐条 `facts`。网页自动在玩家提问成功后调用队友接口，服务端强制检查回合。
+状态含 `mode`（`demo/llm`）、`status`（`idle/playing/won/scored/revealed`）、`source`、`play_mode`、`next_actor`（`player/teammate`）、`pending_question`、`notice`、`history`、`report`。进行中 `puzzle` 仅含标题、汤面和 `fact_count`；结束后才返回含汤底的 `solution`。交卷后的 `report` 包含 `score`、`outcome`、`matched_count`、`partial_count`、`missing_count`、`contradicted_count`、`total_facts`、`answer` 和逐条 `facts`。网页自动在玩家提问成功后调用队友接口，服务端强制检查回合。
 
 ## 演示与限制
 
 无密钥时有两道轮换演示题，使用简单关键词判题，不支持复杂语义或自由题材。每题四条预设 AI 线索用完后，会提示玩家自行继续。完整语义判定需填写 DeepSeek 密钥。
 
-会话存在内存，重启清空，同一浏览器多标签共享当前局，闲置24小时后过期，每局最多200次互动。服务默认仅监听本机，无账号和多人联机系统。队友最多收到最近80条公开互动。
+会话存在内存，重启清空，同一浏览器多标签共享当前局，闲置24小时后过期，每局最多200次互动。服务默认仅监听本机，无账号和多人联机系统。队友最多收到最近80条公开互动，汤主最多收到最近30条公开问句；队友不会收到汤底，队友和汤主都不会收到未解锁提示。
 
 ## 验证
 
 ```powershell
+python -B -m unittest -v test_module3_host.py
 python -B -m unittest -v test_game.py
 ```
 
-覆盖完整通关、汤底隐藏、单人／合作模式、严格轮流、刷新恢复、队友失败恢复、演示线索用尽、输入校验、会话隔离、互动上限、评分、已有题不触发生成、新题保存与随机复用及 DeepSeek 请求格式。模型协议测试使用本地模拟服务，不消耗真实 API 额度。
+`test_module3_host.py` 使用本地桩客户端，覆盖汤主的判定协议、四类前置检查、历史签名与重复问题复用、泄底防护、三级评分、演示模式和输入校验，不连接外部 API。`test_game.py` 覆盖完整通关、汤底隐藏、单人／合作模式、严格轮流、刷新恢复、队友失败恢复、演示线索用尽、输入校验、会话隔离、互动上限、评分、已有题不触发生成、新题保存与随机复用及 DeepSeek 请求格式。模型协议测试使用本地模拟服务，不消耗真实 API 额度。

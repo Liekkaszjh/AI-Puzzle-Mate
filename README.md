@@ -86,6 +86,7 @@
 | 需求分析 | [软件功能规格说明](docs/requirements/functional_spec.md) | 定义软件的用户角色、功能需求、非功能需求及功能验收标准。     |
 | 算法设计 | [算法文档](docs/algorithm/README.md)                     | 记录核心算法、人工智能模型选型、数据处理方案及评价指标。     |
 | 软件设计 | [软件设计文档](docs/software/README.md)                  | 记录系统架构、领域模型、数据库、接口、产品原型及部署方案等设计内容。 |
+| 软件设计 | [汤主模块设计](docs/software/module3_host.md)            | 说明 AI 汤主的判定契约、历史一致性、泄底防护、评分与测试方案。 |
 | 项目管理 | [项目管理文档](docs/mgmt/README.md)                      | 保存项目计划、成员分工、沟通方案、风险管理及会议记录。       |
 | 项目管理 | [GitHub 项目协作基本流程](docs/mgmt/github_workflow.md)  | 介绍团队常用的分支创建、提交、推送、Pull Request、审查与合并流程。 |
 | 总结复盘 | [总结与复盘文档](docs/retrospection/README.md)           | 保存阶段总结、文献阅读体会、代码质量报告、测试报告及 AI 协作记录。 |
