@@ -142,7 +142,7 @@ function render() {
     const answer = element("div", "host-answer");
     const host = element("img"); host.src = "/host.svg"; host.alt = "汤主老陈";
     answer.append(host, element("span", "host-label", "汤主"));
-    const verdictClass = ({ "正确": "yes", "错误": "no", "无关": "neutral" })[turn.verdict];
+    const verdictClass = ({ "是": "yes", "正确": "yes", "不是": "no", "错误": "no", "部分正确": "neutral", "无关": "neutral" })[turn.verdict] || "neutral";
     answer.append(element("span", "verdict " + verdictClass, turn.verdict));
     if (turn.feedback) answer.append(element("span", "feedback", turn.feedback));
     row.append(answer); history.append(row);

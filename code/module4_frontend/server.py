@@ -234,7 +234,8 @@ class Handler(BaseHTTPRequestHandler):
             question = self.text_field(data, "text", 1500 if path == "/api/final" else 300)
             kind = "final" if path == "/api/final" else "question"
             actor = "player"
-        result = judge(client, session.puzzle, question, kind)
+        # 把已公开的问句历史交给汤主，用于重复问题复用和一致性约束。
+        result = judge(client, session.puzzle, question, kind, history=session.history)
         # 判题成功后才写入记录。队友判题失败时保留问题，重试不会重新生成。
         session.history.append({"actor": actor, "kind": kind, "question": question, **result})
         session.pending_question = None
