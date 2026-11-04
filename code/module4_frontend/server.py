@@ -239,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
         session.history.append({"actor": actor, "kind": kind, "question": question, **result})
         session.pending_question = None
         session.next_actor = "teammate" if session.play_mode == "coop" and actor == "player" and kind == "question" and len(session.history) < MAX_TURNS else "player"
-        if kind == "final" and result["verdict"] == "正确":
+        if kind == "final" and result["verdict"] == "是":
             session.status = "won"
         elif kind == "final":
             session.status = "scored"

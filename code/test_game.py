@@ -74,7 +74,7 @@ class DemoGameTests(unittest.TestCase):
         code, state = self.request("/api/teammate", {})
         self.assertEqual(code, 200)
         self.assertEqual(state["history"][1]["actor"], "teammate")
-        self.assertEqual(state["history"][1]["verdict"], "正确")
+        self.assertEqual(state["history"][1]["verdict"], "是")
         self.assertEqual(state["next_actor"], "player")
         if "电梯" in state["puzzle"]["surface"]:
             answer = "他个子矮，够不到二十楼按钮。晴天先到十五楼走楼梯，下雨带伞可以用伞按按钮。"
@@ -139,7 +139,7 @@ class DemoGameTests(unittest.TestCase):
         with session.lock:
             code, _ = self.request("/api/teammate", {})
             self.assertEqual(code, 409)
-        session.history = [{"actor": "player", "kind": "question", "question": "身高有关吗？", "verdict": "正确", "feedback": ""}] * 200
+        session.history = [{"actor": "player", "kind": "question", "question": "身高有关吗？", "verdict": "是", "feedback": ""}] * 200
         code, _ = self.request("/api/question", {"text": "还有吗？"})
         self.assertEqual(code, 409)
         code, state = self.request("/api/reveal", {})
@@ -153,7 +153,7 @@ class DemoGameTests(unittest.TestCase):
                 question = propose_question(self.client, puzzle["surface"], history)
                 self.assertNotIn(question, [turn["question"] for turn in history])
                 result = judge(self.client, puzzle, question)
-                self.assertEqual(result["verdict"], "正确", question)
+                self.assertEqual(result["verdict"], "是", question)
                 history.append({"question": question, **result})
             with self.assertRaises(ModelError):
                 propose_question(self.client, puzzle["surface"], history)
@@ -264,6 +264,24 @@ class DemoGameTests(unittest.TestCase):
             report = score_reconstruction(self.client, puzzle, puzzle["bottom"])
             self.assertEqual(report["score"], 100)
 
+    def test_new_verdict_values_in_demo_and_final(self):
+        puzzle = DEMO_PUZZLES[0]
+        for question, expected in (("他个子矮吗？", "是"), ("他不是个子矮吗？", "不是"), ("电梯坏了吗？", "不是"), ("电梯没有坏吗？", "是"), ("他喜欢苹果吗？", "无关")):
+            self.assertEqual(judge(self.client, puzzle, question)["verdict"], expected)
+        self.assertEqual(judge(self.client, puzzle, puzzle["bottom"], "final")["verdict"], "是")
+        self.assertEqual(judge(self.client, puzzle, "不清楚", "final")["verdict"], "不是")
+
+    def test_negative_and_irrelevant_verdicts_reach_http_history(self):
+        self.start()
+        with patch("module4_frontend.server.judge", return_value={"verdict": "不是", "feedback": ""}):
+            code, state = self.request("/api/question", {"text": "他认识这个人吗？"})
+        self.assertEqual(code, 200)
+        self.assertEqual(state["history"][-1]["verdict"], "不是")
+        with patch("module4_frontend.server.judge", return_value={"verdict": "无关", "feedback": ""}):
+            code, state = self.request("/api/teammate", {})
+        self.assertEqual(code, 200)
+        self.assertEqual(state["history"][-1]["verdict"], "无关")
+
     def test_scoring_failure_preserves_current_game(self):
         before = self.start()
         with patch("module4_frontend.server.judge", side_effect=ModelError("评分失败")):
@@ -298,7 +316,7 @@ class ModelProtocolTests(unittest.TestCase):
                 elif "kind" not in payload:
                     content = {"facts": [{"index": 0, "status": "matched", "reason": "答案明确提到录音"}, {"index": 1, "status": "partial", "reason": "提到播放，未说明定时"}, {"index": 2, "status": "missing", "reason": "未提到关闭"}]}
                 else:
-                    content = {"verdict": "正确", "feedback": "这是不应该暴露的秘密答案"}
+                    content = {"verdict": "是", "feedback": "这是不应该暴露的秘密答案"}
                 text = json.dumps(content, ensure_ascii=False) if owner.response_mode != "invalid" else "不是 JSON"
                 result = {"choices": [{"message": {"content": "```json\n" + text + "\n```"}}]}
                 if owner.response_mode == "truncated":
@@ -335,7 +353,7 @@ class ModelProtocolTests(unittest.TestCase):
         self.assertEqual(set(self.calls[1]["payload"]), {"surface", "history"})
         self.assertNotIn(puzzle["bottom"], json.dumps(self.calls[1], ensure_ascii=False))
         self.assertEqual(self.calls[2]["payload"]["bottom"], puzzle["bottom"])
-        self.assertEqual(result, {"verdict": "正确", "feedback": ""})
+        self.assertEqual(result, {"verdict": "是", "feedback": ""})
         for call in self.calls:
             self.assertEqual(call["path"], "/v1/chat/completions")
             self.assertEqual(call["auth"], "Bearer test-local-key")
