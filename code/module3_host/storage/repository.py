@@ -106,7 +106,9 @@ class Repository:
         db.execute("DELETE FROM messages WHERE game_id=?", (game["id"],))
         db.executemany("INSERT INTO messages VALUES(?,?,?)", [(game["id"], i, encode(m)) for i, m in enumerate(game["history"])])
         # Only publicly known question/verdict pairs enter teammate memory.
-        memory = [{k: turn[k] for k in ("actor", "kind", "question", "verdict", "teammate_id", "teammate_name") if k in turn} for turn in game["history"] if turn["kind"] == "question"]
+        memory = [{k: turn[k] for k in ("actor", "kind", "question", "verdict", "teammate_id", "teammate_name",
+                                        "target", "rationale") if k in turn}
+                  for turn in game["history"] if turn["kind"] == "question"]
         db.execute("INSERT OR REPLACE INTO teammate_memories VALUES(?,?)", (game["id"], encode(memory)))
 
     def start_game(self, sid, game, expected_id):

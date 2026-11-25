@@ -87,7 +87,7 @@ def test_judgment_failure_keeps_question_for_retry_and_public_memory(client, eng
     client.post("/api/question", json={"text": "与身高有关吗？"})
     calls = []
 
-    def teammate(surface, memory, profile):
+    def teammate(surface, memory, profile, board=None):
         calls.append((surface, memory))
         assert all(set(m) == {"actor", "kind", "question", "verdict"} for m in memory)
         return "是录音吗？"

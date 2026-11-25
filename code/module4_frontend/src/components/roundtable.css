@@ -34,6 +34,7 @@
 .soup-bowl { height: 30px; color: #e8e9c7; background: #748562; border-radius: 5px 5px 40px 40px; box-shadow: inset -6px -3px 0 #60734e; font: 22px Georgia; }
 .turn-strip { margin: 0 18px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; border: 1px solid #dce2c9; border-radius: 10px; background: #fbfcf4; }
 .turn-strip strong { font-size: 13px; color: #64774e; }.turn-strip p { margin: 3px 0 0; font-size: 11px; color: #98a085; }
+.turn-strip .hint { color: #6f8455; }
 .turn-light { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: #9db27e; box-shadow: 0 0 0 4px #eaf0df; }
 .thinking { animation: thinking 1s ease-in-out infinite alternate; }
 .solution, .table-panel > p { margin: 18px; }

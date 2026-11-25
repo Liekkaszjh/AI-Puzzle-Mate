@@ -42,19 +42,27 @@ def test_teammate_gets_only_public_data_and_score_is_calculated_locally():
     class Model:
         demo = False
         calls = []
+        prompts = []
 
         def complete_json(self, system, payload, max_tokens=1200):
             self.calls.append(payload)
+            self.prompts.append(system)
             if "surface" in payload:
-                return {"question": "与录音有关吗？"}
+                return {"question": "与录音有关吗？", "target": "录音", "rationale": "先确认声源是不是设备"}
             return {"facts": [{"index": 0, "status": "matched", "reason": "提及录音"}, {"index": 1, "status": "partial", "reason": "未说明时间"}, {"index": 2, "status": "missing", "reason": "未提及"}]}
 
     model = Model()
     engine = AgentEngine(model)
-    assert engine.teammate("公开故事", []) == "与录音有关吗？"
-    assert model.calls[0] == {"surface": "公开故事", "history": []}
+    assert engine.teammate("公开故事", []) == {"question": "与录音有关吗？", "target": "录音",
+                                             "rationale": "先确认声源是不是设备"}
+    # 只公开汤面、公开问答与公开黑板进入模型；汤底、关键事实、数据库对象都不在 payload 里。
+    assert set(model.calls[0]) == {"surface", "history", "avoid", "you", "board", "focus_dimension"}
+    assert model.calls[0]["surface"] == "公开故事"
+    assert model.calls[0]["board"]["confirmed"] == []
+    assert model.calls[0]["focus_dimension"] == "人物"  # 小夏负责人物/物品
     from module2_teammate import TEAMMATES
-    assert engine.teammate("公开故事", [], TEAMMATES[1]) == "与录音有关吗？"
-    assert model.calls[1] == {"surface": "公开故事", "history": [], "teammate": TEAMMATES[1]}
+    assert engine.teammate("公开故事", [], TEAMMATES[1])["question"] == "与录音有关吗？"
+    assert model.calls[1]["you"]["name"] == "阿澄"
+    assert "因果推理" in model.prompts[1]
     result = engine.score({"bottom": "私有真相", "key_points": ["录音", "定时", "忘关"]}, "录音播放")
     assert result["report"]["score"] == 50
