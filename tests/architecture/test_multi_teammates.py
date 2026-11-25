@@ -43,7 +43,9 @@ def test_default_two_teammates_take_distinct_turns_and_share_public_evidence(gam
     repo = client.app.state.repository
     memory = repo.memory(final["game_id"])
     assert memory[1]["teammate_id"] != memory[2]["teammate_id"]
-    assert all(set(t) <= {"actor", "kind", "question", "verdict", "teammate_id", "teammate_name"} for t in memory)
+    assert memory[1]["target"] and memory[1]["rationale"]
+    assert all(set(t) <= {"actor", "kind", "question", "verdict", "teammate_id", "teammate_name",
+                          "target", "rationale"} for t in memory)
 
 
 def test_second_teammate_failure_and_restart_reuse_question_and_identity(game, monkeypatch):
@@ -54,7 +56,7 @@ def test_second_teammate_failure_and_restart_reuse_question_and_identity(game, m
     calls = []
     original_question = engine.question
 
-    def propose(surface, memory, teammate):
+    def propose(surface, memory, teammate, board=None):
         calls.append(deepcopy(teammate))
         assert memory[-1]["teammate_name"] == "小夏"
         return "这与时间有关吗？"

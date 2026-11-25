@@ -48,10 +48,13 @@ npm run dev
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe scripts/evaluate_teammates.py
 cd code/module4_frontend
 npm test
 npm run build
 ```
+
+`scripts/evaluate_teammates.py` 是队友提问质量的离线评测：默认演示模式、不联网，输出重复率、判题无关率、确认覆盖与每回合模型调用数，指标不达标时退出码为 1。加 `--live` 才对真实模型采样（需要 `.env` 配置 API Key 并关闭演示模式）。
 
 Python 安装定义在 `pyproject.toml`，前端依赖锁定在 `package-lock.json`。数据库首次启动自动建立于 `data/`；重启保留，会话创建24小时后过期。JSON 题库可以运行 `python scripts/import_puzzles.py` 导入。四个 module 目录均为当前实现，旧代码在 `legacy/` 备查。
 
@@ -60,6 +63,7 @@ Python 安装定义在 `pyproject.toml`，前端依赖锁定在 `package-lock.js
 ## 项目文档
 
 - [架构与协作约定](docs/software/architecture.md)
+- [架构决策记录](docs/adr/README.md)
 - [出题](code/module1_puzzles/README.md) / [队友](code/module2_teammate/README.md) / [汤主](code/module3_host/README.md) / [前端](code/module4_frontend/README.md)
 - [需求分析](docs/requirements/functional_spec.md)
 - [GitHub 协作流程](docs/mgmt/github_workflow.md)

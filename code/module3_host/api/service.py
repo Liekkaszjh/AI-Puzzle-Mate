@@ -2,7 +2,8 @@ import random
 from copy import deepcopy
 
 from contracts import Engine
-from module2_teammate import DemoCluesExhausted, TEAMMATES
+from module2_teammate import TEAMMATES, TeammateYield
+from module2_teammate.board import hint, new_board, record_turn, restore_board, view
 from module3_host.storage import Repository
 
 MAX_TURNS = 200
@@ -14,15 +15,34 @@ class GameError(Exception):
         self.status = status
 
 
+def teammate_turn(proposal):
+    """接受结构化回合；纯字符串是旧引擎的返回值，仍按无 target 处理。"""
+    if isinstance(proposal, str) and proposal.strip():
+        return proposal.strip(), "", ""
+    if isinstance(proposal, dict):
+        question = proposal.get("question")
+        if isinstance(question, str) and question.strip():
+            target = proposal.get("target")
+            rationale = proposal.get("rationale")
+            return (question.strip(), target if isinstance(target, str) else "",
+                    rationale if isinstance(rationale, str) else "")
+    raise GameError("队友没有返回可用的提问", 502)
+
+
 def initial_game():
     return dict(puzzle=None, history=[], status="idle", play_mode="coop", next_actor="player",
-                pending_question=None, notice="", report=None, source="existing", teammates=[], teammate_index=0)
+                pending_question=None, pending_target="", pending_rationale="", notice="", report=None,
+                source="existing", teammates=[], teammate_index=0, board=new_board())
 
 
 def restore_team(game):
     # Existing one-teammate games keep their original round order.
     game.setdefault("teammates", deepcopy(TEAMMATES[:1]) if game["play_mode"] == "coop" else [])
     game.setdefault("teammate_index", 0)
+    game.setdefault("pending_target", "")
+    game.setdefault("pending_rationale", "")
+    # 老存档没有黑板：按公开历史之外的空白板恢复，不迁移数据库结构。
+    game["board"] = restore_board(game.get("board"))
     return game
 
 
@@ -39,9 +59,13 @@ class GameService:
                       game_id=game.get("id"), turns=len(game["history"]), max_turns=MAX_TURNS)
         result["teammates"] = game["teammates"]
         result["next_teammate"] = game["teammates"][game["teammate_index"]] if game["next_actor"] == "teammate" and game["teammates"] else None
+        result["board"] = view(game["board"])
+        result["hint"] = ""
         if game["puzzle"]:
             p = game["puzzle"]
             result["puzzle"] = dict(title=p["title"], surface=p["surface"], fact_count=len(p["key_points"]))
+            if game["status"] == "playing":
+                result["hint"] = hint(game["board"], len(p["key_points"]))
             if game["status"] in ("won", "scored", "revealed"):
                 result["solution"] = dict(bottom=p["bottom"], key_points=p["key_points"])
         return result
@@ -79,11 +103,14 @@ class GameService:
                 teammate = game["teammates"][game["teammate_index"]]
                 if game["pending_question"] is None:
                     try:
-                        game["pending_question"] = self.engine.teammate(game["puzzle"]["surface"], self.repository.memory(game["id"]), teammate)
-                    except DemoCluesExhausted as exc:
+                        proposal = self.engine.teammate(game["puzzle"]["surface"], self.repository.memory(game["id"]),
+                                                       teammate, game["board"])
+                    except TeammateYield as exc:
                         game.update(notice=str(exc), next_actor="player", teammate_index=0)
                         self.repository.save_game(session["id"], game)
                         return self.public(session, game)
+                    question, target, rationale = teammate_turn(proposal)
+                    game.update(pending_question=question, pending_target=target, pending_rationale=rationale)
                     # Persist before judging: retries and restarts reuse this question.
                     self.repository.save_game(session["id"], game)
                 text = game["pending_question"]
@@ -91,10 +118,11 @@ class GameService:
             result = self.engine.score(game["puzzle"], text) if kind == "final" else self.engine.question(game["puzzle"], text)
             turn = dict(actor=actor, kind=kind, question=text, **result)
             if actor == "teammate":
-                turn.update(teammate_id=teammate["id"], teammate_name=teammate["name"])
+                turn.update(teammate_id=teammate["id"], teammate_name=teammate["name"],
+                            target=game["pending_target"], rationale=game["pending_rationale"])
+                record_turn(game["board"], turn)
             game["history"].append(turn)
-            game["pending_question"] = None
-            game["next_actor"] = "player"
+            game.update(pending_question=None, pending_target="", pending_rationale="", next_actor="player")
             if kind == "question" and game["teammates"] and len(game["history"]) < MAX_TURNS:
                 if actor == "player":
                     game["teammate_index"] = 0
