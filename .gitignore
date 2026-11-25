@@ -19,5 +19,6 @@ data/
 *.sqlite3-wal
 *.sqlite3-shm
 .pytest_cache/
+pytest-of-*/
 test-results/
 playwright-report/
