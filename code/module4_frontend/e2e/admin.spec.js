@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
-const python = fileURLToPath(new URL('../../../.venv/Scripts/python.exe', import.meta.url))
+const python = fileURLToPath(new URL(process.platform === 'win32' ? '../../../.venv/Scripts/python.exe' : '../../../.venv/bin/python', import.meta.url))
 const database = fileURLToPath(new URL('../../../data/e2e.sqlite3', import.meta.url))
 
 test('administrator can find, edit and disable registered players', async ({ page }) => {
