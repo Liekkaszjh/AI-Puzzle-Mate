@@ -151,6 +151,12 @@ def main(argv=None):
         with TestClient(create_app(Path(directory) / "eval.sqlite3", engine)) as client:
             state = client.get("/api/state").json()
             client.headers["X-CSRF-Token"] = state["csrf"]
+            registered = client.post("/api/users/register", json={
+                "email": "evaluation@example.com", "password": "evaluation-password", "display_name": "评测玩家"
+            })
+            if registered.status_code != 200:
+                raise SystemExit("评测账号注册失败：%s" % registered.text)
+            client.headers["X-CSRF-Token"] = registered.json()["csrf"]
             games = [play_game(client, model, args.rounds, args.teammates) for _ in range(args.games)]
 
     metrics = summarize(games, DUPLICATE_THRESHOLD)

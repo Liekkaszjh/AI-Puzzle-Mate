@@ -88,6 +88,11 @@ def demo_client(tmp_path, monkeypatch):
     with TestClient(create_app(tmp_path / "board.sqlite3", engine)) as client:
         state = client.get("/api/state").json()
         client.headers["X-CSRF-Token"] = state["csrf"]
+        registered = client.post("/api/users/register", json={
+            "email": "board@example.com", "password": "board-password", "display_name": "协作玩家"
+        })
+        assert registered.status_code == 200
+        client.headers["X-CSRF-Token"] = registered.json()["csrf"]
         yield client
 
 

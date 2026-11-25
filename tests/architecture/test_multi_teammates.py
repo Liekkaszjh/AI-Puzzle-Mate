@@ -16,6 +16,10 @@ def game(tmp_path, monkeypatch):
     with TestClient(create_app(path, engine)) as client:
         state = client.get("/api/state").json()
         client.headers["X-CSRF-Token"] = state["csrf"]
+        registered = client.post("/api/users/register", json={
+            "email": "multi@example.com", "password": "multi-password", "display_name": "联调玩家"
+        }).json()
+        client.headers["X-CSRF-Token"] = registered["csrf"]
         yield client, engine, path
 
 

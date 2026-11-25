@@ -30,7 +30,13 @@ class ElevatorGame:
 
 
 def start(client):
-    client.post("/api/new", json={"source": "existing", "play_mode": "coop", "theme": ""})
+    registered = client.post("/api/users/register", json={
+        "email": "teammate@example.com", "password": "teammate-password", "display_name": "协作玩家"
+    })
+    assert registered.status_code == 200
+    client.headers["X-CSRF-Token"] = registered.json()["csrf"]
+    response = client.post("/api/new", json={"source": "existing", "play_mode": "coop", "theme": ""})
+    assert response.status_code == 200
 
 
 def test_similarity_tells_paraphrase_from_new_proposition():

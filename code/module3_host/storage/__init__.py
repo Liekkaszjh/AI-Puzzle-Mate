@@ -1,3 +1,3 @@
-from .repository import Conflict, Repository
+from .repository import AuthError, Conflict, Repository
 
-__all__ = ["Conflict", "Repository"]
+__all__ = ["AuthError", "Conflict", "Repository"]

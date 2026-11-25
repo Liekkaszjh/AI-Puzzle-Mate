@@ -1,12 +1,21 @@
 import { test, expect } from '@playwright/test'
 
+async function register(page) {
+  await page.getByRole('button', { name: '注册', exact: true }).click()
+  await page.getByLabel('邮箱').fill(`game-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`)
+  await page.getByLabel('注册昵称').fill('架构联调玩家')
+  await page.getByLabel('密码', { exact: true }).fill('test-password')
+  await page.getByRole('button', { name: '创建账号' }).click()
+  await expect(page.getByRole('button', { name: '开始新的一局' })).toBeEnabled()
+}
+
 test('cooperative game, public dialogue, scoring and refresh recovery', async ({ page }) => {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('button', { name: '开始新的一局' })).toBeEnabled()
+  await register(page)
   await page.getByLabel('玩家昵称').fill('架构联调玩家')
-  await page.getByRole('button', { name: '保存昵称' }).click()
+  await page.getByRole('button', { name: '保存我的昵称' }).click()
   await expect(page.getByRole('button', { name: '开始新的一局' })).toBeEnabled()
   await page.getByRole('button', { name: '开始新的一局' }).click()
   await expect(page.locator('.story h2')).toBeVisible()
@@ -35,7 +44,7 @@ test('cooperative game, public dialogue, scoring and refresh recovery', async ({
 test('mobile solo game and reveal', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.getByRole('button', { name: '开始新的一局' })).toBeEnabled()
+  await register(page)
   await page.getByLabel('推理方式').selectOption('solo')
   await page.getByRole('button', { name: '开始新的一局' }).click()
   await expect(page.locator('.teammate-seat')).toHaveCount(0)
@@ -52,7 +61,7 @@ test('mobile solo game and reveal', async ({ page }) => {
 test('three teammates on mobile resume the failed second turn without repeating the first', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.getByRole('button', { name: '开始新的一局' })).toBeEnabled()
+  await register(page)
   await page.getByLabel('AI 队友人数').selectOption('3')
   await page.getByRole('button', { name: '开始新的一局' }).click()
   await expect(page.locator('.teammate-seat')).toHaveCount(3)

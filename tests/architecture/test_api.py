@@ -22,6 +22,10 @@ def client(tmp_path, engine):
     with TestClient(create_app(tmp_path / "game.sqlite3", engine)) as client:
         state = client.get("/api/state").json()
         client.headers["X-CSRF-Token"] = state["csrf"]
+        registered = client.post("/api/users/register", json={
+            "email": "game@example.com", "password": "game-password", "display_name": "游戏玩家"
+        }).json()
+        client.headers["X-CSRF-Token"] = registered["csrf"]
         yield client
 
 
@@ -53,6 +57,10 @@ def test_persistence_including_user_and_csrf_survives_new_app(tmp_path, engine):
     with TestClient(create_app(path, engine)) as first:
         state = first.get("/api/state").json()
         first.headers["X-CSRF-Token"] = state["csrf"]
+        registered = first.post("/api/users/register", json={
+            "email": "restart@example.com", "password": "restart-password", "display_name": "玩家甲"
+        }).json()
+        first.headers["X-CSRF-Token"] = registered["csrf"]
         first.patch("/api/users/me", json={"display_name": "玩家甲"})
         start(first)
         expected = first.post("/api/question", json={"text": "与按钮有关吗？"}).json()
@@ -61,7 +69,7 @@ def test_persistence_including_user_and_csrf_survives_new_app(tmp_path, engine):
         second.cookies.update(cookies)
         assert second.get("/api/state").json() == expected
         assert second.get("/api/users/me").json()["display_name"] == "玩家甲"
-        second.headers["X-CSRF-Token"] = state["csrf"]
+        second.headers["X-CSRF-Token"] = registered["csrf"]
         assert second.post("/api/teammate", json={}).status_code == 200
 
 
