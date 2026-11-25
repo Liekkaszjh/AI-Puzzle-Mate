@@ -29,7 +29,7 @@ function speech(id) {
 
 <template>
   <section class="panel story table-panel" aria-label="围桌推理场景">
-    <div class="table-topline"><span>● {{ team.length ? `你与 ${team.length} 位 AI 的合作推理` : '一个人的推理时光' }}</span><span>{{ state.turns }}/{{ state.max_turns }} 次互动</span></div>
+    <div class="table-topline"><span>● {{ team.length ? `你与 ${team.length} 位 AI 的合作推理` : '一个人的推理时光' }}</span><span v-if="state.board">已确认 {{ state.board.confirmed }} 个命题 · {{ state.turns }}/{{ state.max_turns }} 次互动</span><span v-else>{{ state.turns }}/{{ state.max_turns }} 次互动</span></div>
     <div class="scene" :class="{ solo: !team.length }" :data-team-count="team.length">
       <span class="wall-detail" aria-hidden="true">✦</span>
       <div class="rug" aria-hidden="true"></div>
@@ -56,7 +56,7 @@ function speech(id) {
         <div class="nameplate"><strong>{{ mate.name }} <em>AI</em></strong><span>{{ mate.focus.split('：')[0] }}</span></div>
       </div>
     </div>
-    <div class="turn-strip" role="status"><span class="turn-light" :class="{ thinking: busy }"></span><div><strong>{{ status }}</strong><p>{{ team.length ? `提问顺序：你 → ${team.map(m => m.name).join(' → ')} → 你` : '慢慢想，你可以连续提问。' }}</p></div></div>
+    <div class="turn-strip" role="status"><span class="turn-light" :class="{ thinking: busy }"></span><div><strong>{{ status }}</strong><p>{{ team.length ? `提问顺序：你 → ${team.map(m => m.name).join(' → ')} → 你` : '慢慢想，你可以连续提问。' }}</p><p v-if="state.hint" class="hint">{{ state.hint }}</p></div></div>
     <p v-if="state.notice" role="status">{{ state.notice }}</p>
     <div v-if="state.solution" class="solution"><h3>故事真相</h3><p>{{ state.solution.bottom }}</p></div>
   </section>
