@@ -37,7 +37,7 @@ Repository 管理会话、公开记忆、题库和游戏快照。创建新局与
 
 ## HTTP 接口
 
-先 `GET /api/state` 获取 HttpOnly Cookie 与 `csrf`；所有写操作带相同 Cookie、`Content-Type: application/json`、`X-CSRF-Token`。会话有效期固定为创建后24小时；超时重新分配匿名用户。生产 HTTPS 设置 `COOKIE_SECURE=true`。
+先 `GET /api/state` 获取 HttpOnly Cookie 与 `csrf`；所有写操作带相同 Cookie、`Content-Type: application/json`、`X-CSRF-Token`。会话有效期固定为创建后24小时；超时分配未登录会话。注册、登录和退出会轮换会话 Cookie 与 CSRF，客户端应使用响应中的新 `csrf`。游戏写接口要求已登录玩家；管理接口要求管理员。生产 HTTPS 设置 `COOKIE_SECURE=true`。
 
 | 方法 | 路径 | 请求 | 返回 |
 | --- | --- | --- | --- |
@@ -45,6 +45,12 @@ Repository 管理会话、公开记忆、题库和游戏快照。创建新局与
 | GET | `/api/state` | 无 | 公开游戏状态、csrf |
 | GET | `/api/users/me` | 无 | 用户 id、display_name |
 | PATCH | `/api/users/me` | `{display_name:"玩家甲"}` | 用户资料 |
+| POST | `/api/users/register` | `{email,password,display_name}` | 注册并登录，返回 `{user,csrf}` |
+| POST | `/api/users/login` | `{email,password}` | 登录，返回 `{user,csrf}` |
+| POST | `/api/users/logout` | `{}` | 退出并转为未登录会话，返回 `{user,csrf}` |
+| POST | `/api/users/password` | `{current_password,new_password}` | 修改密码并使其他会话过期 |
+| GET | `/api/admin/users` | `q,limit,offset` 查询参数 | 管理员搜索与分页查看注册玩家、游戏数 |
+| PATCH | `/api/admin/users/{uid}` | `{display_name?,is_active?}` | 管理员修改玩家昵称或启用/禁用账号 |
 | POST | `/api/new` | `{source:"existing",play_mode:"coop",theme:"",teammate_count:2}` | 新局状态；队友人数1至3，默认2；solo 忽略阵容 |
 | POST | `/api/question` | `{text:"与身高有关吗？"}` | 判题后的状态；合作模式下一回合为 teammate |
 | POST | `/api/teammate` | `{}` | 当前一名队友提问并判定后的状态；前端按顺序继续下一名 |
@@ -95,7 +101,7 @@ npm run build
 
 ## 当前范围
 
-用户管理实现为匿名用户与昵称；不含密码登录、跨设备账号或多人实时房间。SQLite 保存单局队友的公开问答记忆，不实现跨局认知画像。LangGraph 出题在单次请求内运行，不恢复中断的审核图。生成调用同步占用一个后端工作线程；长任务队列、限流和多人房间适合后续独立模块开发。
+用户管理分为玩家端和管理端。未登录会话仅能获取 CSRF 并注册或登录；游戏写接口要求玩家角色。管理员通过 `scripts/create_admin.py` 交互式创建，不能公开注册，也不能使用玩家游戏接口。管理端可查看/搜索注册玩家、游戏数、注册与最近登录时间，修改昵称及启用/禁用账号。禁用使现有会话失效，重新启用不自动登录。密码以 PBKDF2-SHA256 加随机盐存储；玩家账号可在另一浏览器登录并接续最近一局。邮箱验证、密码找回和多人实时房间尚未实现。SQLite 保存单局队友的公开问答记忆，不实现跨局认知画像。LangGraph 出题在单次请求内运行，不恢复中断的审核图。生成调用同步占用一个后端工作线程；长任务队列、限流和多人房间适合后续独立模块开发。
 
 ## 技术资料
 

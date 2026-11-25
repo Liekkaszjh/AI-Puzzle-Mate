@@ -15,7 +15,7 @@ AI 海龟汤推理游戏。保留圆桌围坐展示，支持单人或多名 AI �
 
 共用的模型客户端、接口协议和引擎装配分别放在 `code/llm.py`、`code/contracts.py`、`code/engine.py`。旧实现已归档至 `legacy/`。
 
-新系统使用本地 FastAPI 与 SQLite。当前支持匿名用户与 AI 合作，不含多人实时房间或密码登录。旧的 Supabase/原生 JS 技术栈说明已被本架构取代。
+新系统使用本地 FastAPI 与 SQLite。玩家必须注册或登录后才能开始游戏；登录后可恢复账号最近一局。管理员使用独立界面查看、搜索、修改和启用/禁用注册用户。暂不支持邮箱验证、找回密码或多人实时房间。旧的 Supabase/原生 JS 技术栈说明已被本架构取代。
 
 ## 启动
 
@@ -27,6 +27,8 @@ python -m venv .venv
 Copy-Item .env.example .env
 .\.venv\Scripts\python.exe code/run.py --demo
 ```
+
+首次使用管理端时，在项目根目录运行 `.\.venv\Scripts\python.exe scripts/create_admin.py --email admin@example.com`，按提示输入并确认管理员密码。管理员账号不能通过公开注册接口创建。管理员与玩家共用登录入口，登录后会进入各自界面。
 
 另开终端启动前端：
 

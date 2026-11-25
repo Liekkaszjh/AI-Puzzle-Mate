@@ -98,6 +98,10 @@ def test_default_api_wires_rag_persists_graph_and_hides_secrets(tmp_path, monkey
     database = tmp_path / "rag.sqlite3"
     with TestClient(create_app(database)) as client:
         client.headers["X-CSRF-Token"] = client.get("/api/state").json()["csrf"]
+        registered = client.post("/api/users/register", json={
+            "email": "workflow@example.com", "password": "workflow-password", "display_name": "流程玩家"
+        }).json()
+        client.headers["X-CSRF-Token"] = registered["csrf"]
         first = client.post("/api/new", json={"source": "new", "theme": "灯"})
         assert first.status_code == 200
         assert set(first.json()["puzzle"]) == {"title", "surface", "fact_count"}
