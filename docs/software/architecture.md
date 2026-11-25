@@ -29,7 +29,7 @@ flowchart LR
 
 ## 模块契约
 
-`Engine.generate(theme) -> puzzle` 返回 `id/title/surface/bottom/key_points/generation`；仅审核通过才返回。`question(puzzle,text)` 和 `score(puzzle,text)` 返回判定，评分额外包含 `report`。`teammate(surface,memory) -> question` 不接收私有故事对象。模型调用只经过 `JsonModel.complete_json(system,payload,max_tokens)`。
+`Engine.generate(theme) -> puzzle` 返回 `id/title/surface/bottom/key_points/generation`；仅审核通过才返回。`question(puzzle,text)` 和 `score(puzzle,text)` 返回判定，评分额外包含 `report`。`teammate(surface,memory,teammate=None) -> question` 只额外接收角色的 `id/name/focus`，不接收私有故事对象。模型调用只经过 `JsonModel.complete_json(system,payload,max_tokens)`。
 
 Repository 管理会话、公开记忆、题库和游戏快照。创建新局与新题入库同一事务完成；判题失败不追加对话；队友问题在判题前单独保存，失败或重启后可继续。并发写通过 `games.version` 和会话当前局进行校验，防止覆盖。并发请求可能已经调用模型，冲突返回 409，不自动重发付费请求。
 
@@ -45,15 +45,17 @@ Repository 管理会话、公开记忆、题库和游戏快照。创建新局与
 | GET | `/api/state` | 无 | 公开游戏状态、csrf |
 | GET | `/api/users/me` | 无 | 用户 id、display_name |
 | PATCH | `/api/users/me` | `{display_name:"玩家甲"}` | 用户资料 |
-| POST | `/api/new` | `{source:"existing",play_mode:"coop",theme:""}` | 新局状态；source 可为 new，play_mode 可为 solo |
+| POST | `/api/new` | `{source:"existing",play_mode:"coop",theme:"",teammate_count:2}` | 新局状态；队友人数1至3，默认2；solo 忽略阵容 |
 | POST | `/api/question` | `{text:"与身高有关吗？"}` | 判题后的状态；合作模式下一回合为 teammate |
-| POST | `/api/teammate` | `{}` | 队友提问并判定后的状态 |
+| POST | `/api/teammate` | `{}` | 当前一名队友提问并判定后的状态；前端按顺序继续下一名 |
 | POST | `/api/final` | `{text:"完整还原"}` | 最终状态、报告、真相 |
 | POST | `/api/reveal` | `{}` | revealed 状态和真相 |
 
 输入必须为对象，不接受未知字段、非字符串、空白文本。问题最多300字、答案1500字、主题100字、昵称30字。参数错误422，业务条件不符400，CSRF失败403，回合/并发冲突409，模型错误502；错误统一 `{error:"可展示的说明"}`。FastAPI 内部未处理异常仍为通用500。服务日志不主动打印问题、答案或密钥。
 
 状态包含 `game_id/mode/status/history/turns/max_turns/puzzle/play_mode/next_actor/pending_question/notice/report/source/csrf`。进行中 puzzle 仅有 `title/surface/fact_count`，结束后才有 `solution.bottom/key_points`。`status` 为 idle/playing/won/scored/revealed；报告含百分制 score、matched_count、total_facts、answer、facts。完整事实1分、部分0.5、遗漏/矛盾0分，Python 等权换算，不接受模型直接返回总分。
+
+多队友状态额外包含 `teammates`（公开阵容）和 `next_teammate`（下一位队友，玩家回合为 null）。历史记录及公开记忆为 AI 发言附加 `teammate_id/teammate_name`。默认两位队友，支持1至3位，顺序为玩家 → 全部队友各一次 → 玩家。每个队友有独立姓名与推理侧重，共享公开证据，不接收汤底；并非独立私有记忆系统。当前队友索引与待判问题保存在 games.state，失败重试或重启不重复已完成的队友。老存档缺少阵容时按原有一名队友恢复，无需数据库结构迁移。圆桌 Vue 组件按阵容动态安排座位，保留本地 SVG 人物、纸质汤面、气泡与回合高亮。
 
 运行时 `/docs` 和 `/openapi.json` 为可执行协议；`docs/software/openapi.json` 是供前端离线对接的快照。修改请求模型后从根目录重新生成：
 

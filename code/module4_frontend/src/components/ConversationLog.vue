@@ -13,7 +13,7 @@ watch(() => props.history.length, async () => {
     <div ref="log" class="log" aria-live="polite">
       <p v-if="!history.length" class="muted">从一个具体的是非问题开始吧。</p>
       <article v-for="(turn, index) in history" :key="index" class="turn">
-        <b>{{ turn.actor === 'player' ? '你' : 'AI 队友 · 小夏' }} <small>{{ turn.kind === 'final' ? '提交还原' : '提问' }}</small></b>
+        <b><img class="log-avatar" :src="turn.actor === 'player' ? '/avatars/player.svg' : `/avatars/${!turn.teammate_id || turn.teammate_id === 'xiaoxia' ? 'teammate' : turn.teammate_id}.svg`" alt="">{{ turn.actor === 'player' ? '你' : `AI 队友 · ${turn.teammate_name || '小夏'}` }} <small>{{ turn.kind === 'final' ? '提交还原' : '提问' }}</small></b>
         <p>{{ turn.question }}</p><span class="verdict">汤主：{{ turn.verdict }}</span>
         <p v-if="turn.feedback" class="muted">{{ turn.feedback }}</p>
       </article>

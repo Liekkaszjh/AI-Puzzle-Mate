@@ -7,11 +7,12 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from llm import ModelClient, ModelError, load_env
 from module1_puzzles.puzzles import DEMO_PUZZLES
 from engine import AgentEngine
+from module1_puzzles.retrieval import ApprovedPuzzleRetriever
 from module3_host.storage import Conflict, Repository
 from .service import GameError, GameService
 
@@ -26,6 +27,7 @@ class Payload(BaseModel):
 class NewGame(Payload):
     source: Literal["existing", "new"] = "existing"
     play_mode: Literal["solo", "coop"] = "coop"
+    teammate_count: int = Field(default=2, ge=1, le=3)
     theme: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
 
 
@@ -49,7 +51,7 @@ def create_app(database_path=None, engine=None):
         repo = Repository(database_path or os.getenv("DATABASE_PATH", "data/puzzle-mate.sqlite3"))
         repo.seed(DEMO_PUZZLES)
         app.state.repository = repo
-        app.state.service = GameService(repo, engine or AgentEngine(ModelClient()))
+        app.state.service = GameService(repo, engine or AgentEngine(ModelClient(), retriever=ApprovedPuzzleRetriever(repo.puzzles)))
         yield
 
     app = FastAPI(title="问渊 API", version="0.2.0", lifespan=lifespan)
@@ -106,7 +108,7 @@ def create_app(database_path=None, engine=None):
 
     @app.post("/api/new")
     def start(data: NewGame, request: Request, session: Session):
-        return request.app.state.service.start(session, data.source, data.play_mode, data.theme)
+        return request.app.state.service.start(session, data.source, data.play_mode, data.theme, data.teammate_count)
 
     @app.post("/api/question")
     def question(data: Question, request: Request, session: Session):

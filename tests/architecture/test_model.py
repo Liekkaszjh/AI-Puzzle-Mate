@@ -53,5 +53,8 @@ def test_teammate_gets_only_public_data_and_score_is_calculated_locally():
     engine = AgentEngine(model)
     assert engine.teammate("公开故事", []) == "与录音有关吗？"
     assert model.calls[0] == {"surface": "公开故事", "history": []}
+    from module2_teammate import TEAMMATES
+    assert engine.teammate("公开故事", [], TEAMMATES[1]) == "与录音有关吗？"
+    assert model.calls[1] == {"surface": "公开故事", "history": [], "teammate": TEAMMATES[1]}
     result = engine.score({"bottom": "私有真相", "key_points": ["录音", "定时", "忘关"]}, "录音播放")
     assert result["report"]["score"] == 50

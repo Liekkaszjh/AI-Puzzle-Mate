@@ -25,8 +25,8 @@ def client(tmp_path, engine):
         yield client
 
 
-def start(client, mode="coop"):
-    response = client.post("/api/new", json={"play_mode": mode})
+def start(client, mode="coop", teammate_count=1):
+    response = client.post("/api/new", json={"play_mode": mode, "teammate_count": teammate_count})
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -87,7 +87,7 @@ def test_judgment_failure_keeps_question_for_retry_and_public_memory(client, eng
     client.post("/api/question", json={"text": "与身高有关吗？"})
     calls = []
 
-    def teammate(surface, memory):
+    def teammate(surface, memory, profile):
         calls.append((surface, memory))
         assert all(set(m) == {"actor", "kind", "question", "verdict"} for m in memory)
         return "是录音吗？"

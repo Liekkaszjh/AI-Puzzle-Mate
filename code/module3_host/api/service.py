@@ -1,7 +1,8 @@
 import random
+from copy import deepcopy
 
 from contracts import Engine
-from module2_teammate import DemoCluesExhausted
+from module2_teammate import DemoCluesExhausted, TEAMMATES
 from module3_host.storage import Repository
 
 MAX_TURNS = 200
@@ -15,7 +16,14 @@ class GameError(Exception):
 
 def initial_game():
     return dict(puzzle=None, history=[], status="idle", play_mode="coop", next_actor="player",
-                pending_question=None, notice="", report=None, source="existing")
+                pending_question=None, notice="", report=None, source="existing", teammates=[], teammate_index=0)
+
+
+def restore_team(game):
+    # Existing one-teammate games keep their original round order.
+    game.setdefault("teammates", deepcopy(TEAMMATES[:1]) if game["play_mode"] == "coop" else [])
+    game.setdefault("teammate_index", 0)
+    return game
 
 
 class GameService:
@@ -25,9 +33,12 @@ class GameService:
 
     def public(self, session, game=None):
         game = game or self.repository.load_game(session["id"]) or initial_game()
+        restore_team(game)
         result = {k: game[k] for k in ("status", "history", "play_mode", "next_actor", "pending_question", "notice", "report", "source")}
         result.update(csrf=session["csrf"], mode="demo" if self.engine.demo else "llm", puzzle=None,
                       game_id=game.get("id"), turns=len(game["history"]), max_turns=MAX_TURNS)
+        result["teammates"] = game["teammates"]
+        result["next_teammate"] = game["teammates"][game["teammate_index"]] if game["next_actor"] == "teammate" and game["teammates"] else None
         if game["puzzle"]:
             p = game["puzzle"]
             result["puzzle"] = dict(title=p["title"], surface=p["surface"], fact_count=len(p["key_points"]))
@@ -35,7 +46,7 @@ class GameService:
                 result["solution"] = dict(bottom=p["bottom"], key_points=p["key_points"])
         return result
 
-    def start(self, session, source, play_mode, theme):
+    def start(self, session, source, play_mode, theme, teammate_count=2):
         current = self.repository.load_game(session["id"])
         if source == "new":
             if self.engine.demo or not theme:
@@ -47,6 +58,7 @@ class GameService:
             puzzle = random.choice([p for p in library if p["id"] != previous_id] or library)
         game = initial_game()
         game.update(puzzle=puzzle, status="playing", source=source, play_mode=play_mode)
+        game["teammates"] = deepcopy(TEAMMATES[:teammate_count]) if play_mode == "coop" else []
         game = self.repository.start_game(session["id"], game, current["id"] if current else None)
         return self.public(session, game)
 
@@ -54,8 +66,9 @@ class GameService:
         game = self.repository.load_game(session["id"])
         if not game or game["status"] != "playing":
             raise GameError("请先开始新的一局", 409)
+        restore_team(game)
         if action == "reveal":
-            game.update(status="revealed", pending_question=None, next_actor="player")
+            game.update(status="revealed", pending_question=None, next_actor="player", teammate_index=0)
         else:
             if len(game["history"]) >= MAX_TURNS and action != "final":
                 raise GameError("本局达到200次互动上限，请提交答案或揭晓", 409)
@@ -63,11 +76,12 @@ class GameService:
             if game["next_actor"] != actor or (actor == "teammate" and game["play_mode"] != "coop"):
                 raise GameError("请等待当前回合完成", 409)
             if actor == "teammate":
+                teammate = game["teammates"][game["teammate_index"]]
                 if game["pending_question"] is None:
                     try:
-                        game["pending_question"] = self.engine.teammate(game["puzzle"]["surface"], self.repository.memory(game["id"]))
+                        game["pending_question"] = self.engine.teammate(game["puzzle"]["surface"], self.repository.memory(game["id"]), teammate)
                     except DemoCluesExhausted as exc:
-                        game.update(notice=str(exc), next_actor="player")
+                        game.update(notice=str(exc), next_actor="player", teammate_index=0)
                         self.repository.save_game(session["id"], game)
                         return self.public(session, game)
                     # Persist before judging: retries and restarts reuse this question.
@@ -75,9 +89,21 @@ class GameService:
                 text = game["pending_question"]
             kind = "final" if action == "final" else "question"
             result = self.engine.score(game["puzzle"], text) if kind == "final" else self.engine.question(game["puzzle"], text)
-            game["history"].append(dict(actor=actor, kind=kind, question=text, **result))
+            turn = dict(actor=actor, kind=kind, question=text, **result)
+            if actor == "teammate":
+                turn.update(teammate_id=teammate["id"], teammate_name=teammate["name"])
+            game["history"].append(turn)
             game["pending_question"] = None
-            game["next_actor"] = "teammate" if game["play_mode"] == "coop" and actor == "player" and kind == "question" and len(game["history"]) < MAX_TURNS else "player"
+            game["next_actor"] = "player"
+            if kind == "question" and game["teammates"] and len(game["history"]) < MAX_TURNS:
+                if actor == "player":
+                    game["teammate_index"] = 0
+                    game["next_actor"] = "teammate"
+                elif game["teammate_index"] + 1 < len(game["teammates"]):
+                    game["teammate_index"] += 1
+                    game["next_actor"] = "teammate"
+            if game["next_actor"] == "player":
+                game["teammate_index"] = 0
             if kind == "final":
                 game.update(status="won" if result["verdict"] == "正确" else "scored", report=result["report"])
         self.repository.save_game(session["id"], game)

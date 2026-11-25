@@ -319,6 +319,13 @@
             "title": "Play Mode",
             "default": "coop"
           },
+          "teammate_count": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Teammate Count",
+            "default": 2
+          },
           "theme": {
             "type": "string",
             "maxLength": 100,

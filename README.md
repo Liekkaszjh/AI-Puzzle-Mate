@@ -1,6 +1,6 @@
 # 问渊 · AI Puzzle Mate
 
-AI 海龟汤推理游戏。支持单人或 AI 队友合作、已有题库与生成新题、对话判定、完整还原评分和刷新/重启恢复。
+AI 海龟汤推理游戏。保留圆桌围坐展示，支持单人或多名 AI 队友合作（默认2位，可选1至3位）、已有题库与生成新题、对话判定、完整还原评分和刷新/重启恢复。
 
 ![产品封面](docs/assets/product-cover.png)
 
@@ -8,7 +8,7 @@ AI 海龟汤推理游戏。支持单人或 AI 队友合作、已有题库与生�
 
 | 部分 | 技术 | 目录 | 职责 |
 | --- | --- | --- | --- |
-| 出题模块 | LangGraph + DeepSeek | `code/module1_puzzles` | 出题 → 审核 → 有限修改、题目结构校验 |
+| 出题模块 | LangGraph + DeepSeek | `code/module1_puzzles` | 题库 RAG → 规划 → 图谱辅助出题 → 审核 → 专门修改 |
 | 队友模块 | DeepSeek | `code/module2_teammate` | 根据汤面与公开对话提问 |
 | 汤主模块 | FastAPI + DeepSeek + SQLite | `code/module3_host` | 判题、评分、用户、回合、数据持久化 |
 | 前端模块 | Vue 3 + Vite | `code/module4_frontend` | 游戏桌面、对话记录、评分展示 |
@@ -38,7 +38,7 @@ npm run dev
 
 浏览器打开 <http://127.0.0.1:5173>；后端接口文档 <http://127.0.0.1:8000/docs>。
 
-离线演示无需密钥。接入真实模型：在根目录 `.env` 填写 `DEEPSEEK_API_KEY`，设置 `DEMO_MODE=false`，不带 `--demo` 重启后端。模型可通过 `DEEPSEEK_MODEL` 调整；密钥只保留在后端。生成审核默认最多六次模型请求，失败不自动网络重试。真实 API 需要自行配置额度。
+离线演示无需密钥。接入真实模型：在根目录 `.env` 填写 `DEEPSEEK_API_KEY`，设置 `DEMO_MODE=false`，不带 `--demo` 重启后端。模型可通过 `DEEPSEEK_MODEL` 调整；密钥只保留在后端。生成审核默认最多七次模型请求，失败不自动网络重试。真实 API 需要自行配置额度。
 
 ## 协作与验证
 

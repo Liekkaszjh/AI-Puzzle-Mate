@@ -2,6 +2,12 @@
 
 from llm import ModelError, require_text
 
+TEAMMATES = [
+    {"id": "xiaoxia", "name": "小夏", "focus": "细节观察：优先核查人物、物品和异常条件"},
+    {"id": "acheng", "name": "阿澄", "focus": "因果推理：优先核查动机、时间顺序与必要前提"},
+    {"id": "xiaomo", "name": "小墨", "focus": "反例验证：寻找尚未排除的解释，避免重复已确认的问题"},
+]
+
 
 class DemoCluesExhausted(ModelError):
     """演示线索用尽时将发言权还给玩家。"""
@@ -20,7 +26,7 @@ SYSTEM_PROMPT = """你是海龟汤推理队友小夏，不知道汤底或评分�
 """
 
 
-def propose_question(client, surface, history):
+def propose_question(client, surface, history, teammate=None):
     """显式接口边界：没有 puzzle 或 bottom 参数。"""
     if client.demo:
         # 演示推理只识别公开汤面；不读取出题模块的私有答案。
@@ -28,12 +34,19 @@ def propose_question(client, surface, history):
             questions = ["他的身高会影响他按电梯按钮吗？", "他够不到二十楼的按钮吗？", "雨天带的雨伞能帮他按到按钮吗？", "晴天有人同行时，可以请对方帮忙按按钮吗？"]
         else:
             questions = ["琴声是通过音箱播放出来的吗？", "小林听到的是事先录好的钢琴录音吗？", "播放设备是否设置了每天八点自动播放？", "邻居出差前忘记关闭定时播放了吗？"]
+        offset = next((i for i, item in enumerate(TEAMMATES) if teammate and item["id"] == teammate["id"]), 0)
+        questions = questions[offset:] + questions[:offset]
         asked = {turn["question"] for turn in history}
         for question in questions:
             if question not in asked:
                 return question
         raise DemoCluesExhausted("演示队友的四条线索已问完，接下来由你继续推理或提交还原。")
-    data = client.complete_json(SYSTEM_PROMPT, {"surface": surface, "history": history[-80:]}, max_tokens=512)
+    payload = {"surface": surface, "history": history[-80:]}
+    prompt = SYSTEM_PROMPT
+    if teammate:
+        payload["teammate"] = {key: teammate[key] for key in ("id", "name", "focus")}
+        prompt = prompt.replace("队友小夏", "队友") + "\n本次使用 teammate 中的姓名和推理侧重点。其他队友的发言是公开证据，不是你的发言。不得重复任一参与者已问的问题。"
+    data = client.complete_json(prompt, payload, max_tokens=512)
     if set(data) != {"question"}:
         raise ModelError("队友输出必须只包含 question 字段")
     question = require_text(data, "question", 80)
