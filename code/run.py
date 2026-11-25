@@ -1,19 +1,18 @@
-"""启动：python run.py；不需要安装第三方依赖。"""
+"""从任意目录启动 FastAPI；前端位于 code/module4_frontend。"""
 
 import argparse
 import os
 import sys
 from pathlib import Path
 
-# 保持项目根目录严格只有四个模块文件夹，不生成额外缓存目录。
-sys.dont_write_bytecode = True
-
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "code"))
 from llm import ModelClient, ModelError, load_env
-from module4_frontend import create_server
 
 
 def main():
-    load_env(Path(__file__).with_name(".env"))
+    os.chdir(ROOT)
+    load_env(ROOT / ".env")
     parser = argparse.ArgumentParser(description="海龟汤 · 与 AI 队友一起还原真相")
     parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=os.getenv("PORT", "8000"))
@@ -26,20 +25,16 @@ def main():
         client = ModelClient()
         if args.check_api:
             available = client.check_connection()
-            print("DeepSeek 网络与密钥检查通过；deepseek-flash " + ("可用。" if available else "未出现在模型列表中，请检查账户状态。"))
+            print("DeepSeek 网络与密钥检查通过；" + client.model + " " + ("可用。" if available else "未出现在模型列表中，请检查账户状态。"))
             return
-        server = create_server(client, args.host, args.port)
+        import uvicorn
+        from module3_host.api.app import create_app
+        app = create_app()
     except (ModelError, ValueError, OSError) as exc:
         parser.exit(1, "启动失败：%s\n" % exc)
-    print("\n海龟汤游戏已启动：http://%s:%d" % (args.host, server.server_port))
+    print("\n后端 API：http://%s:%d/docs" % (args.host, args.port))
     print("运行模式：" + ("演示模式（内置题库 + 简单规则判题）" if client.demo else "大模型模式（" + client.model + "）"))
-    print("在浏览器打开上述地址，按 Ctrl+C 停止。\n", flush=True)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n游戏已停止。")
-    finally:
-        server.server_close()
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

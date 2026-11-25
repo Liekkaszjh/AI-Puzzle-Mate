@@ -1,0 +1,33 @@
+name: Module checks
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: code/module4_frontend/package-lock.json
+      - run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r requirements-dev.lock
+          .venv/bin/python -m pip install -e '.[dev]'
+          .venv/bin/python -m pytest
+          .venv/bin/python scripts/export_openapi.py
+          git diff --exit-code -- docs/software/openapi.json
+      - run: npm ci
+        working-directory: code/module4_frontend
+      - run: npm test && npm run build
+        working-directory: code/module4_frontend
+      - run: npx playwright install --with-deps chrome
+        working-directory: code/module4_frontend
+      - run: npm run test:e2e
+        working-directory: code/module4_frontend

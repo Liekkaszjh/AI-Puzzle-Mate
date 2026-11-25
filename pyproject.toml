@@ -1,17 +1,25 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-puzzle-mate-generator"
-version = "0.1.0"
-description = "模块化海龟汤题目生成与审核"
+name = "ai-puzzle-mate"
+version = "0.2.0"
+description = "Vue + FastAPI + LangGraph 海龟汤协作游戏"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "langgraph>=1,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[tool.setuptools]
+package-dir = {"" = "code"}
+py-modules = ["llm", "contracts", "engine"]
 
 [tool.setuptools.packages.find]
-where = ["code/core_engine"]
-include = ["puzzle_generator*"]
+where = ["code"]
+include = ["module1_puzzles*", "module2_teammate*", "module3_host*"]
 
-[tool.setuptools.package-data]
-puzzle_generator = ["skills/*/SKILL.md"]
+[tool.pytest.ini_options]
+testpaths = ["tests/architecture"]
+pythonpath = ["code"]

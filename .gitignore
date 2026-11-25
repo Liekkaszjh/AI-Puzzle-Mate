@@ -13,3 +13,11 @@ __pycache__/
 .venv/
 build/
 dist/
+node_modules/
+data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.pytest_cache/
+test-results/
+playwright-report/

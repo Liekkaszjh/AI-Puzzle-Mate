@@ -1,96 +1,65 @@
-# 问渊 | AI驱动的多人海龟汤游戏
+# 问渊 · AI Puzzle Mate
 
+AI 海龟汤推理游戏。支持单人或 AI 队友合作、已有题库与生成新题、对话判定、完整还原评分和刷新/重启恢复。
 
+![产品封面](docs/assets/product-cover.png)
 
-<p align="center">
-  <img src="docs/assets/product-cover.png" alt="问渊产品封面" width="480">
-</p>
+## 当前技术架构
 
+| 部分 | 技术 | 目录 | 职责 |
+| --- | --- | --- | --- |
+| 出题模块 | LangGraph + DeepSeek | `code/module1_puzzles` | 出题 → 审核 → 有限修改、题目结构校验 |
+| 队友模块 | DeepSeek | `code/module2_teammate` | 根据汤面与公开对话提问 |
+| 汤主模块 | FastAPI + DeepSeek + SQLite | `code/module3_host` | 判题、评分、用户、回合、数据持久化 |
+| 前端模块 | Vue 3 + Vite | `code/module4_frontend` | 游戏桌面、对话记录、评分展示 |
 
----
+共用的模型客户端、接口协议和引擎装配分别放在 `code/llm.py`、`code/contracts.py`、`code/engine.py`。旧实现已归档至 `legacy/`。
 
-> **询问秘密的深渊，还原故事的真相。**
+新系统使用本地 FastAPI 与 SQLite。当前支持匿名用户与 AI 合作，不含多人实时房间或密码登录。旧的 Supabase/原生 JS 技术栈说明已被本架构取代。
 
-**问渊** 是一款由大语言模型（LLM）驱动的侧向思维（Lateral Thinking）解谜游戏（海龟汤）。玩家需要通过不断的提问和推理，揭开一个个神秘故事背后的真相。支持多人联机。
+## 启动
 
-## 🎬 产品介绍视频
+需要 Python 3.11+、Node 22.12+。在项目根目录运行：
 
-<p align="center">
-  <a href="promo-video/out/wenyuan-promo-final.mp4">
-    <img src="docs/assets/product-cover.png" alt="观看问渊产品介绍视频" width="720">
-  </a>
-</p>
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe code/run.py --demo
+```
 
-<p align="center">
-  <strong><a href="promo-video/out/wenyuan-promo-final.mp4">▶ 点击观看《问渊》产品介绍视频</a></strong><br>
-  2 分 15 秒 · 1080p · 含配乐与中文旁白
-</p>
+另开终端启动前端：
 
-## 🎮 在线演示
+```powershell
+cd code/module4_frontend
+npm ci
+npm run dev
+```
 
-**Demo 地址**: 待定
+浏览器打开 <http://127.0.0.1:5173>；后端接口文档 <http://127.0.0.1:8000/docs>。
 
-**GitHub Pages(备用)**: 待定
+离线演示无需密钥。接入真实模型：在根目录 `.env` 填写 `DEEPSEEK_API_KEY`，设置 `DEMO_MODE=false`，不带 `--demo` 重启后端。模型可通过 `DEEPSEEK_MODEL` 调整；密钥只保留在后端。生成审核默认最多六次模型请求，失败不自动网络重试。真实 API 需要自行配置额度。
 
-## ✨ 特性
+## 协作与验证
 
-- 🤖 **LLM 驱动**: 动态生成谜题，智能判定玩家提问，每个故事都是独一无二的。
-- 👥 **多人联机**: 基于 Supabase 实现实时房间系统，支持与好友一同推理。
-- 🫧 **物理引擎**: 基于原生 JavaScript 开发的 Bubble Physics Engine，提供丝滑的关键词选择体验。
-- ⚙️ **高度自定义**: 支持自定义 API Base URL 和模型，完美适配 DeepSeek, OpenAI, LM Studio 等各种服务。
-- 📱 **响应式设计**: 采用磨砂玻璃质感 UI，适配桌面端与移动端。
-- 🎨 **沉浸式体验**: 精致的动画效果与排版，带你进入逻辑的深渊。
+分工、依赖方向、接口字段、数据库表和已知范围详见 [架构与协作约定](docs/software/architecture.md)。前端可直接使用 [OpenAPI 快照](docs/software/openapi.json) 对接。建议按 frontend/backend/agents/model/storage 分支开发，经 PR 审查后合并。
 
-## 🚀 如何开始
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+cd code/module4_frontend
+npm test
+npm run build
+```
 
-1. **访问应用**: 待定
-2. **配置 API**: 点击首页右上角的设置图标，填写您的 `API Key` 和 `Base URL`，并设置对应模型名称。
-3. **选择模式**:
-   - **单人模式**: 在首页的气泡池中点击选择 1-4 个感兴趣的关键词，开始推理。
-   - **多人模式**: 创建或加入房间，与在线玩家共同揭开真相。
-4. **开始推理**: 
-   - **提问模式**: 输入只能用“是/否/无关”回答的问题。
-   - **猜谜模式**: 当你确信掌握真相时，输入你的推理。
-5. **达成结局**: 还原真相后，系统将根据你的表现进行结算。
+Python 安装定义在 `pyproject.toml`，前端依赖锁定在 `package-lock.json`。数据库首次启动自动建立于 `data/`；重启保留，会话创建24小时后过期。JSON 题库可以运行 `python scripts/import_puzzles.py` 导入。四个 module 目录均为当前实现，旧代码在 `legacy/` 备查。
 
-## 🤖 推荐配置
+后端已验证依赖快照见 `requirements-dev.lock`。端到端联调在前端目录运行 `npm run test:e2e`（需要根目录 `.venv` 与 Chrome）；GitHub Actions 配置位于 `.github/workflows/ci.yml`。
 
-为了获得最佳的游戏体验，建议使用以下模型组合：
+## 项目文档
 
-| 角色                     | 推荐模型           | 说明                             |
-| :----------------------- | :----------------- | :------------------------------- |
-| **故事模型 (Reasoning)** | `Deepseekv4-flash` | 负责生成高质量、逻辑严密的谜题。 |
-| **裁判模型 (Chat)**      | `Deepseekv4-flash` | 负责快速、准确地回答玩家的提问。 |
-
-⚠️ 如果 **裁判模型 (Chat)** 的参数量较小，建议使用带有 Thinking 模式的模型，以提高准确度。
-
-## 🛠️ 技术栈
-
-- **前端**: HTML5, CSS3 (Variables, Flexbox, Animations), Vanilla JavaScript
-- **后端/实时**: [Supabase](https://supabase.com/)
-- **图标**: [Iconify](https://iconify.design/)
-- **字体**: Noto Sans SC, Noto Serif SC, JetBrains Mono
-- **物理**: Bubble Physics Engine
-
-## 📄 开源协议
-
-本项目采用 [GPL-3.0 License](LICENSE) 协议。
-
-## 📚 项目文档
-
-以下文档记录了项目从需求分析、系统设计到开发测试的主要内容，以及团队协作规范。
-
-| 分类     | 文档                                                     | 简介                                                         |
-| :------- | :------------------------------------------------------- | :----------------------------------------------------------- |
-| 需求分析 | [工程问题定义](docs/requirements/problem_definition.md)  | 说明项目要解决的工程问题，并记录 5W1H 分析、产品描述、项目目标、范围及创新点。 |
-| 需求分析 | [软件功能规格说明](docs/requirements/functional_spec.md) | 定义软件的用户角色、功能需求、非功能需求及功能验收标准。     |
-| 算法设计 | [算法文档](docs/algorithm/README.md)                     | 记录核心算法、人工智能模型选型、数据处理方案及评价指标。     |
-| 软件设计 | [软件设计文档](docs/software/README.md)                  | 记录系统架构、领域模型、数据库、接口、产品原型及部署方案等设计内容。 |
-| 项目管理 | [项目管理文档](docs/mgmt/README.md)                      | 保存项目计划、成员分工、沟通方案、风险管理及会议记录。       |
-| 项目管理 | [GitHub 项目协作基本流程](docs/mgmt/github_workflow.md)  | 介绍团队常用的分支创建、提交、推送、Pull Request、审查与合并流程。 |
-| 总结复盘 | [总结与复盘文档](docs/retrospection/README.md)           | 保存阶段总结、文献阅读体会、代码质量报告、测试报告及 AI 协作记录。 |
-| 代码模块 | [前端模块说明](code/frontend/README.md)                  | 说明用户界面、交互逻辑及前端资源的存放范围。                 |
-| 代码模块 | [后端模块说明](code/backend/README.md)                   | 说明业务逻辑、接口服务、数据访问及相关配置的存放范围。       |
-| 代码模块 | [核心引擎说明](code/core_engine/README.md)               | 说明 AI 推理、规则处理及核心业务能力等代码的存放范围。       |
-| 软件测试 | [单元测试说明](tests/unit/README.md)                     | 说明函数、类和独立模块的单元测试代码及相关资料。             |
-| 软件测试 | [集成测试说明](tests/integration/README.md)              | 说明模块、服务和接口之间协作情况的集成测试代码及相关资料。   |
+- [架构与协作约定](docs/software/architecture.md)
+- [出题](code/module1_puzzles/README.md) / [队友](code/module2_teammate/README.md) / [汤主](code/module3_host/README.md) / [前端](code/module4_frontend/README.md)
+- [需求分析](docs/requirements/functional_spec.md)
+- [GitHub 协作流程](docs/mgmt/github_workflow.md)
+- [项目管理](docs/mgmt/README.md)
+- [产品介绍视频](promo-video/out/wenyuan-promo-final.mp4)

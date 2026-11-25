@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>慢慢想 · 围桌喝碗海龟汤</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-icon">≈</span><span>慢慢想 <small>海龟汤推理室</small></span></a>
+    <span class="header-note">一张桌子，一起把故事想明白。</span>
+    <span class="connection"><i></i><span id="mode">正在连接…</span></span>
+  </header>
+  <main>
+    <section id="lobby" class="lobby">
+      <div class="lobby-intro"><p class="eyebrow">THE LITTLE MYSTERY CLUB</p><h1>今天，想喝哪一碗汤？</h1><p>选择故事的来源，带上你的好奇心入座。</p></div>
+      <section class="setup" aria-label="开局设置">
+      <fieldset class="mode-picker"><legend class="sr-only">选择新一局的参与方式</legend><label><input type="radio" name="play-mode" value="coop" checked><span><b>♧</b> 和 AI 一起玩 <small>轮流提问</small></span></label><label><input type="radio" name="play-mode" value="solo"><span><b>♙</b> 我自己来 <small>单人推理</small></span></label></fieldset>
+      <span class="setup-note">先选择单人或合作，再挑一碗汤。</span>
+      </section>
+      <div class="source-cards"><button id="existing-game" class="source-card" disabled><span class="source-icon">♧</span><span class="eyebrow">FROM THE COLLECTION</span><strong>随机已有题目</strong><p>从题库抽取一则故事，直接入座。<br>每道题都带有独立的关键事实评分标准。</p><span class="source-link">随机抽题，马上开玩 ↗</span></button><button id="choose-new" class="source-card" disabled><span class="source-icon">✧</span><span class="eyebrow">A BRAND NEW MYSTERY</span><strong>出一道新题</strong><p>指定一个主题，让汤主现做一碗新汤。<br>同步生成真相和关键事实，保存到题库。</p><span class="source-link">写下主题，生成故事 ↗</span></button></div>
+      <button id="resume" class="button secondary" hidden>回到当前推理桌 →</button>
+    </section>
+    <section id="generation" class="generation" hidden><button id="generation-back" class="text-button">← 返回选题</button><p class="eyebrow">MAKE A NEW MYSTERY</p><h1>给汤主一点灵感。</h1><p>输入你想玩的主题，生成后就会自动进入推理桌。</p><label for="theme">故事主题</label><input id="theme" maxlength="100" placeholder="例如：校园里的一次误会、雨夜列车、温暖的反转"><p id="generation-note"></p><button id="new-game" class="button primary" disabled>生成新题并入座 ↗</button><p id="generation-progress" role="status" hidden>汤主正在构思故事和关键事实，请稍等…</p></section>
+    <div id="error" role="alert" hidden></div>
+    <section id="game-view" hidden>
+    <div class="game-nav"><button id="back-lobby" class="text-button">← 返回选题</button><span id="fact-count">根据关键事实评分</span><button id="score-again" class="text-button" hidden>查看本局得分 ↗</button></div>
+    <div class="game-grid">
+      <section class="table-panel" aria-label="围桌推理场景">
+        <div class="table-topline"><span><i class="small-dot"></i> <span id="table-mode">你与 AI 的合作推理</span></span><span id="status" class="status">等待入座</span></div>
+        <div id="scene" class="scene" data-speaker="host">
+          <span class="wall-detail detail-one" aria-hidden="true">✦</span><span class="wall-detail detail-two" aria-hidden="true">✧</span>
+          <div class="rug" aria-hidden="true"></div>
+          <div class="seat host-seat" id="host-seat"><div class="speech host-speech" id="host-bubble">欢迎入座，今天也慢慢想。</div><div class="portrait-wrap"><img class="portrait" src="/host.svg" alt="汤主老陈：戴眼镜、穿绿色围裙的卷发大叔" width="160" height="180"></div><div class="nameplate"><strong>老陈</strong><span>汤主 · 知道真相的人</span></div></div>
+          <div class="table-shadow" aria-hidden="true"></div><div class="wood-table" aria-hidden="true"><div class="table-inlay"></div><span class="table-mark">SLOW THINKING CLUB</span></div>
+          <div class="cup cup-left" aria-hidden="true"><i></i></div><div class="cup cup-right" aria-hidden="true"><i></i></div>
+          <article class="story-paper"><div class="paper-heading"><span>今日汤面</span><span class="paper-number">CASE / 01</span></div><h2 id="title">一个故事，等你来揭晓</h2><p id="surface">先选好你的推理方式，再点击「入座 · 开始新局」。汤主会端上一则充满反常细节的故事。</p><div class="paper-footer"><span>◇</span> 答案，藏在好问题里。</div></article>
+          <div class="soup" aria-hidden="true"><div class="steam">∿ ∿</div><div class="soup-bowl"><span>?</span></div><div class="soup-plate"></div></div>
+          <div class="seat player-seat" id="player-seat"><div class="speech player-speech" id="player-bubble">让我想一想，从哪里问起呢？</div><div class="portrait-wrap"><img class="portrait" src="/player.svg" alt="玩家：穿杏色连帽衫的短发青年" width="160" height="180"></div><div class="nameplate"><strong>你 <em>PLAYER</em></strong><span id="player-caption">准备好你的第一个问题</span></div></div>
+          <div class="seat teammate-seat" id="teammate-seat"><div class="speech teammate-speech" id="teammate-bubble">你先问，下一个轮到我。</div><div class="portrait-wrap"><img class="portrait" src="/teammate.svg" alt="AI 队友小夏：戴圆眼镜、穿蓝色外套的短发女孩" width="160" height="180"></div><div class="nameplate"><strong>小夏 <em>AI</em></strong><span id="teammate-caption">你的推理搭子</span></div></div>
+        </div>
+        <div class="turn-strip"><div class="turn-light"></div><div><strong id="turn-label" role="status">先选好模式，开始一局吧</strong><p id="turn-description">和 AI 一起玩：你问一次，小夏问一次。</p></div><button id="teammate" class="text-button" hidden>重试队友回合 ↻</button></div>
+        <form id="question-form" class="composer"><label for="question" class="sr-only">你的问题</label><textarea id="question" rows="2" maxlength="300" placeholder="是不是……？每次问一个是非问题。" disabled></textarea><div class="composer-bottom"><span id="input-hint">Enter 提问 · Shift + Enter 换行</span><div><button id="final" type="button" class="button secondary" disabled>我要交答案</button><button id="ask" type="submit" class="button primary" disabled>向汤主提问 <span>↑</span></button></div></div></form>
+        <div class="table-bottomline"><span>汤主只会回答 <b class="yes-text">正确</b> / <b class="no-text">错误</b> / <b class="neutral-text">无关</b></span><button id="reveal" class="text-button" disabled>揭晓汤底 ↗</button></div>
+      </section>
+      <aside class="conversation-panel" aria-label="右侧对话记录">
+        <header class="log-header"><div><p class="eyebrow">OUR CONVERSATION</p><h2>桌边的对话 <span class="small-dot"></span></h2></div><span id="turn-count">0 条</span></header>
+        <div class="log-legend"><span><i class="legend-player"></i>你</span><span id="ai-legend"><i class="legend-ai"></i>小夏</span><span><i class="legend-host"></i>汤主老陈</span></div>
+        <div id="history" class="history" role="log" aria-live="polite"><div class="empty"><span class="empty-illustration">“</span><h3>好故事，从一句话开始</h3><p>你和小夏的问题、汤主的回答，<br>都会按顺序记在这里。</p><span class="empty-line"></span></div></div>
+        <section id="solution" class="solution" hidden><p class="eyebrow">THE TRUTH / 汤底</p><h3 id="result-title">真相揭晓</h3><p id="bottom"></p><ul id="key-points"></ul></section>
+        <div class="log-footer"><span>◇</span> 不急，线索会慢慢连起来。</div>
+      </aside>
+    </div>
+    </section>
+    <footer class="page-footer"><span>慢慢想 · 每个反常，都有一个合理的解释。</span><span id="mode-note"></span></footer>
+  </main>
+  <dialog id="answer-dialog" class="game-dialog" aria-labelledby="answer-title"><form id="answer-form"><div class="dialog-top"><p class="eyebrow">YOUR RECONSTRUCTION</p><button id="close-answer" type="button" class="text-button" aria-label="关闭答案输入">✕</button></div><h2 id="answer-title">把你心中的故事，完整说出来。</h2><p id="answer-rules">按关键事实逐条评分。</p><label for="answer-input">你的完整故事还原</label><textarea id="answer-input" maxlength="1500" rows="8" placeholder="谁做了什么？为什么会这样？请尽量把原因、经过和结果说清楚。" required></textarea><p class="submission-note">提交后结束本局，揭晓汤底与关键事实，并显示得分。每条事实等权：完整命中 1，部分命中 0.5，遗漏或矛盾 0。</p><p id="answer-error" role="alert" hidden></p><button id="submit-answer" class="button primary" type="submit">提交答案并评分 →</button></form></dialog>
+  <dialog id="score-dialog" class="game-dialog score-dialog" aria-labelledby="score-title"><div class="dialog-top"><p class="eyebrow">THE STORY YOU REBUILT</p><button id="close-score" class="text-button" aria-label="关闭得分">✕</button></div><h2 id="score-title">本局故事还原得分</h2><div class="score-hero"><strong id="score-value">0</strong><span>/ 100 分</span></div><p id="score-summary"></p><p id="score-method">各关键事实等权评分，接受同义表述。</p><div id="score-facts"></div><details class="score-detail"><summary>查看我的答案与完整汤底</summary><h3>我的还原</h3><p id="submitted-answer"></p><h3>完整汤底</h3><p id="score-bottom"></p></details><button id="score-home" class="button primary">再选一碗汤 ↗</button></dialog>
+</body>
+</html>
