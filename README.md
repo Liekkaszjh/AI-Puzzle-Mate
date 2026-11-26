@@ -60,6 +60,8 @@ Python 安装定义在 `pyproject.toml`，前端依赖锁定在 `package-lock.js
 
 后端已验证依赖快照见 `requirements-dev.lock`。端到端联调在前端目录运行 `npm run test:e2e`（需要根目录 `.venv` 与 Chrome）；GitHub Actions 配置位于 `.github/workflows/ci.yml`。
 
+CI 在推送代码、创建或更新 PR 时自动运行，也可从 GitHub 仓库的 **Actions → CI → Run workflow** 手动触发。后端任务检查 Python 测试、队友离线评测及 OpenAPI 快照；前端任务检查单元测试、生产构建和 Chrome 端到端测试。全部使用演示模式，无需配置 API 密钥。运行详情的 **Artifacts** 提供后端测试结果和浏览器报告、失败追踪及截图，保留 7 天。
+
 ## 项目文档
 
 - [架构与协作约定](docs/software/architecture.md)

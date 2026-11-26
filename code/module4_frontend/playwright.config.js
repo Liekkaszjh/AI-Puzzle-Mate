@@ -4,7 +4,15 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   testDir: './e2e',
   workers: 1,
-  use: { baseURL: 'http://127.0.0.1:5174', channel: 'chrome', headless: true },
+  forbidOnly: !!process.env.CI,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  use: {
+    baseURL: 'http://127.0.0.1:5174',
+    channel: 'chrome',
+    headless: true,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
   webServer: [
     {
       command: `"${fileURLToPath(new URL(process.platform === 'win32' ? '../../.venv/Scripts/python.exe' : '../../.venv/bin/python', import.meta.url))}" "${fileURLToPath(new URL('../run.py', import.meta.url))}" --demo --port 8001`,
