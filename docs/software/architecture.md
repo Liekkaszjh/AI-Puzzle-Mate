@@ -37,7 +37,7 @@ flowchart LR
 
 Repository 管理会话、公开记忆、题库和游戏快照。创建新局与新题入库同一事务完成；判题失败不追加对话；队友问题在判题前连同 `target/rationale` 单独保存，失败或重启后可继续。并发写通过 `games.version` 和会话当前局进行校验，防止覆盖。并发请求可能已经调用模型，冲突返回 409，不自动重发付费请求。
 
-出题图为 `author → reviewer → END`，拒绝则 `reviewer → revision → reviewer`，默认最多两次修改；三次审核均失败返回 502，不保存失败题目。协议与结构校验失败立即退出。审核为模型质量检查，不保证故事正确性。
+出题图为 `retrieval → planner → author → reviewer → END`，拒绝则 `reviewer → revision → reviewer`，默认最多两次修改。四个角色分别实现于模块1的 `agents/planner.py`、`author.py`、`reviewer.py`、`reviser.py`，`workflow.py` 负责 LangGraph 编排。`kg.py` 负责故事图谱结构校验和查询，`guardrails.py` 负责节点交接检查。候选结构不合格时审核关口跳过模型调用，携带程序错误进入限次修改；规划、参考或审核控制协议无效以及网络/JSON错误立即失败。最终返回前再次验证候选，失败题目不入库。故事语义与图谱的因果合理性仍由审核模型检查，不保证故事正确性。
 
 ## HTTP 接口
 

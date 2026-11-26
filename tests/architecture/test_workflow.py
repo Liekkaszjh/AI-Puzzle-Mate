@@ -25,7 +25,7 @@ CANDIDATE = {"story_graph": GRAPH, "puzzle": PUZZLE}
 
 
 def test_rejected_story_is_revised_and_independently_reviewed():
-    revised = {"story_graph": {"nodes": [], "edges": []}, "puzzle": PUZZLE}
+    revised = {"story_graph": GRAPH, "puzzle": {**PUZZLE, "bottom": "为了方便照明，住户设置了定时开关，到时间灯自动亮起。"}}
     model = ScriptedModel([PLAN, CANDIDATE, {"approved": False, "feedback": "解释定时设置的动机"}, revised, {"approved": True, "feedback": ""}])
     result = AgentEngine(model).generate("灯")
     meta = result["generation"]
@@ -52,10 +52,13 @@ def test_bad_reviewer_protocol_is_rejected(review):
         AgentEngine(ScriptedModel([PLAN, CANDIDATE, review])).generate("灯")
 
 
-def test_malformed_candidate_is_sent_to_reviewer_then_repaired():
-    model = ScriptedModel([PLAN, {"puzzle": {}}, {"approved": False, "feedback": "缺少图谱及必填字段"}, CANDIDATE, {"approved": True, "feedback": ""}])
+def test_malformed_candidate_is_blocked_before_reviewer_then_repaired():
+    model = ScriptedModel([PLAN, {"puzzle": {}}, CANDIDATE, {"approved": True, "feedback": ""}])
     assert AgentEngine(model).generate("灯")["title"] == PUZZLE["title"]
-    assert model.calls[2]["candidate"] == {"puzzle": {}}
+    assert model.calls[2]["previous"] == {"puzzle": {}}
+    assert "候选必须" in model.calls[2]["review"]
+    assert model.calls[3]["candidate"] == CANDIDATE
+    assert len(model.calls) == 4
 
 
 def test_zero_revisions_and_distinct_agent_prompts():
@@ -81,10 +84,11 @@ def test_rag_uses_only_approved_puzzles_and_refreshes_source():
     assert all(call["references"][0]["id"] == "approved" for call in model.calls)
 
 
-def test_approved_but_unassemblable_candidate_fails_cleanly():
-    model = ScriptedModel([PLAN, {}, {"approved": True, "feedback": ""}])
-    with pytest.raises(ModelError, match="无法装配"):
-        AgentEngine(model).generate("灯")
+def test_unassemblable_candidate_never_reaches_model_reviewer():
+    model = ScriptedModel([PLAN, {}])
+    with pytest.raises(ModelError, match="限定次数"):
+        AgentEngine(model, max_revisions=0).generate("灯")
+    assert len(model.calls) == 2
 
 
 def test_default_api_wires_rag_persists_graph_and_hides_secrets(tmp_path, monkeypatch):

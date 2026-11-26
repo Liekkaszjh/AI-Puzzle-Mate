@@ -4,7 +4,8 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from llm import ModelError
 from contracts import JsonModel
-from .prompts import PLANNER_PROMPT, AUTHOR_PROMPT, REVIEW_PROMPT, REVISER_PROMPT
+from .agents import PlannerAgent, AuthorAgent, ReviewerAgent, ReviserAgent
+from .guardrails import GuardrailError, validate_theme, validate_references, validate_candidate
 from .retrieval import ApprovedPuzzleRetriever
 
 
@@ -18,6 +19,7 @@ class GenerationState(TypedDict, total=False):
     attempts: int
     trace: list[str]
     reviews: list[dict]
+    guardrail_error: str
 
 
 class PuzzleWorkflow:
@@ -28,6 +30,10 @@ class PuzzleWorkflow:
         self.demo = model.demo
         self.max_revisions = max_revisions
         self.retriever = retriever or ApprovedPuzzleRetriever()
+        self.planner = PlannerAgent(model)
+        self.author = AuthorAgent(model)
+        self.reviewer = ReviewerAgent(model)
+        self.reviser = ReviserAgent(model)
         builder = StateGraph(GenerationState)
         for name, action in (("retrieval", self._retrieve), ("planner", self._plan),
                              ("author", self._author), ("reviewer", self._review),
@@ -44,19 +50,24 @@ class PuzzleWorkflow:
         self.graph = builder.compile()
 
     def _retrieve(self, state):
-        return {"references": self.retriever.search(state["theme"]), "trace": ["retrieval"]}
+        return {"references": validate_references(self.retriever.search(state["theme"])), "trace": ["retrieval"]}
 
     def _plan(self, state):
-        plan = self.model.complete_json(PLANNER_PROMPT, {"theme": state["theme"], "references": state["references"]}, max_tokens=1000)
+        plan = self.planner.run(state["theme"], state["references"])
         return {"plan": plan, "trace": state["trace"] + ["planner"]}
 
     def _draft(self, state, revision=False):
-        payload = {key: state[key] for key in ("theme", "plan", "references")}
         if revision:
-            payload.update(previous=state["candidate"], review=state["feedback"])
-        candidate = self.model.complete_json(REVISER_PROMPT if revision else AUTHOR_PROMPT, payload, max_tokens=4000)
-        # Candidate structure and story quality are assessed together by the reviewer.
-        return {"candidate": candidate, "attempts": state["attempts"] + 1,
+            candidate = self.reviser.run(state["theme"], state["plan"], state["references"],
+                                         state["candidate"], state["feedback"])
+        else:
+            candidate = self.author.run(state["theme"], state["plan"], state["references"])
+        error = ""
+        try:
+            candidate = validate_candidate(candidate)
+        except GuardrailError as exc:
+            error = str(exc)
+        return {"candidate": candidate, "guardrail_error": error, "attempts": state["attempts"] + 1,
                 "trace": state["trace"] + ["revision" if revision else "author"]}
 
     def _author(self, state):
@@ -66,12 +77,11 @@ class PuzzleWorkflow:
         return self._draft(state, revision=True)
 
     def _review(self, state):
-        result = self.model.complete_json(REVIEW_PROMPT,
-            {key: state[key] for key in ("theme", "plan", "references", "candidate")}, max_tokens=1600)
-        if (set(result) != {"approved", "feedback"} or type(result["approved"]) is not bool
-                or not isinstance(result["feedback"], str) or len(result["feedback"]) > 2000
-                or (not result["approved"] and not result["feedback"].strip())):
-            raise ModelError("审核结果无效，题目未入库")
+        # Bad structures are never sent to the semantic reviewer or accepted by its approval.
+        if state.get("guardrail_error"):
+            result = {"approved": False, "feedback": state["guardrail_error"]}
+        else:
+            result = self.reviewer.run(state["theme"], state["plan"], state["references"], state["candidate"])
         return {**result, "reviews": state["reviews"] + [result], "trace": state["trace"] + ["reviewer"]}
 
     def _route(self, state):
@@ -85,13 +95,15 @@ class PuzzleWorkflow:
     def generate(self, theme):
         if self.demo:
             raise ModelError("新题生成需要配置 DeepSeek，并关闭 DEMO_MODE")
+        theme = validate_theme(theme)
         state = self.graph.invoke({"theme": theme, "attempts": 0, "trace": [], "reviews": []})
         try:
-            puzzle = state["candidate"]["puzzle"]
+            candidate = validate_candidate(state["candidate"])
+            puzzle = candidate["puzzle"]
             return {"id": "generated-" + uuid.uuid4().hex,
                     **{key: puzzle[key] for key in ("title", "surface", "bottom", "key_points")},
                     "generation": {"approved": True, "attempts": state["attempts"], "trace": state["trace"],
-                        "plan": state["plan"], "story_graph": state["candidate"]["story_graph"],
+                        "plan": state["plan"], "story_graph": candidate["story_graph"],
                         "reference_ids": [p["id"] for p in state["references"]],
                         "reviews": state["reviews"], "tags": [theme]}}
         except (KeyError, TypeError) as exc:
